@@ -281,7 +281,8 @@ export async function markBulkAsRead(
   userId: string,
   articleIds?: string[],
   feedId?: string,
-  categoryId?: string
+  categoryId?: string,
+  olderThan?: Date
 ) {
   let targetIds = articleIds;
 
@@ -308,10 +309,18 @@ export async function markBulkAsRead(
 
     if (feedIds.length === 0) return { count: 0 };
 
-    const articlesList = await db.query.articles.findMany({
-      where: inArray(articles.feedId, feedIds),
-      columns: { id: true },
-    });
+    // Build conditions for article query
+    const conditions = [inArray(articles.feedId, feedIds)];
+
+    // Add date filter if provided - mark articles older than this date
+    if (olderThan) {
+      conditions.push(lte(articles.publishedAt, olderThan));
+    }
+
+    const articlesList = await db
+      .select({ id: articles.id })
+      .from(articles)
+      .where(and(...conditions));
 
     targetIds = articlesList.map((a) => a.id);
   }
@@ -449,4 +458,140 @@ export async function searchArticles(userId: string, query: string, page = 1, li
     sortBy: 'relevance',
     sortOrder: 'desc',
   });
+}
+
+export async function getUnreadCount(userId: string) {
+  // Get user's subscribed feed IDs
+  const userSubscriptions = await db.query.subscriptions.findMany({
+    where: eq(subscriptions.userId, userId),
+  });
+
+  const feedIds = userSubscriptions.map((s) => s.feedId);
+
+  if (feedIds.length === 0) {
+    return { count: 0 };
+  }
+
+  // Count articles that are not marked as read
+  // An article is unread if there's no userArticles entry or isRead is false
+  const result = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(articles)
+    .leftJoin(
+      userArticles,
+      and(
+        eq(userArticles.articleId, articles.id),
+        eq(userArticles.userId, userId)
+      )
+    )
+    .where(
+      and(
+        inArray(articles.feedId, feedIds),
+        or(
+          sql`${userArticles.isRead} IS NULL`,
+          eq(userArticles.isRead, false)
+        )
+      )
+    );
+
+  return { count: result[0]?.count || 0 };
+}
+
+export async function getUnreadCountsByCategory(userId: string) {
+  // Get user's subscriptions with category info
+  const userSubscriptions = await db.query.subscriptions.findMany({
+    where: eq(subscriptions.userId, userId),
+  });
+
+  if (userSubscriptions.length === 0) {
+    return { counts: {} };
+  }
+
+  // Group feed IDs by category
+  const feedsByCategory = new Map<string, string[]>();
+  for (const sub of userSubscriptions) {
+    if (sub.categoryId) {
+      const feeds = feedsByCategory.get(sub.categoryId) || [];
+      feeds.push(sub.feedId);
+      feedsByCategory.set(sub.categoryId, feeds);
+    }
+  }
+
+  if (feedsByCategory.size === 0) {
+    return { counts: {} };
+  }
+
+  // Get unread counts for each category
+  const counts: Record<string, number> = {};
+
+  for (const [categoryId, feedIds] of feedsByCategory) {
+    const result = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(articles)
+      .leftJoin(
+        userArticles,
+        and(
+          eq(userArticles.articleId, articles.id),
+          eq(userArticles.userId, userId)
+        )
+      )
+      .where(
+        and(
+          inArray(articles.feedId, feedIds),
+          or(
+            sql`${userArticles.isRead} IS NULL`,
+            eq(userArticles.isRead, false)
+          )
+        )
+      );
+
+    counts[categoryId] = result[0]?.count || 0;
+  }
+
+  return { counts };
+}
+
+export async function getUnreadCountsByFeed(userId: string) {
+  // Get user's subscribed feed IDs
+  const userSubscriptions = await db.query.subscriptions.findMany({
+    where: eq(subscriptions.userId, userId),
+  });
+
+  if (userSubscriptions.length === 0) {
+    return { counts: {} };
+  }
+
+  const feedIds = userSubscriptions.map((s) => s.feedId);
+
+  // Get unread counts grouped by feed
+  const result = await db
+    .select({
+      feedId: articles.feedId,
+      count: sql<number>`count(*)::int`,
+    })
+    .from(articles)
+    .leftJoin(
+      userArticles,
+      and(
+        eq(userArticles.articleId, articles.id),
+        eq(userArticles.userId, userId)
+      )
+    )
+    .where(
+      and(
+        inArray(articles.feedId, feedIds),
+        or(
+          sql`${userArticles.isRead} IS NULL`,
+          eq(userArticles.isRead, false)
+        )
+      )
+    )
+    .groupBy(articles.feedId);
+
+  const counts: Record<string, number> = {};
+  for (const row of result) {
+    counts[row.feedId] = row.count;
+  }
+
+  return { counts };
 }

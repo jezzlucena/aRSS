@@ -1,16 +1,18 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Rss, Plus, ArrowDown, ArrowUp } from 'lucide-react';
+import { Rss, Plus, ArrowDown, ArrowUp, CheckCheck } from 'lucide-react';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Button } from '@/components/ui';
 import { ArticleList, ArticleView } from '@/components/articles';
 import { AddFeedModal } from '@/components/feeds';
 import { KeyboardShortcutsHelp } from '@/components/common';
 import { SearchResults } from '@/components/search/SearchResults';
-import { useFeeds, useCategories, useKeyboardNavigation } from '@/hooks';
+import { useFeeds, useCategories, useKeyboardNavigation, useMarkBulkAsRead } from '@/hooks';
 import { useFeedStore } from '@/stores/feedStore';
 import { useArticleStore } from '@/stores/articleStore';
 import { useUIStore } from '@/stores/uiStore';
+import { toast } from '@/stores/toastStore';
 import type { ArticleWithState } from '@arss/types';
 
 type SortOrder = 'newest' | 'oldest';
@@ -30,6 +32,38 @@ export function HomePage() {
   const { data: feeds = [], isLoading: feedsLoading } = useFeeds();
   const { isLoading: categoriesLoading } = useCategories();
   const { selectedView, searchQuery, selectedFeedId, selectedCategoryId, categories } = useFeedStore();
+  const markBulkAsRead = useMarkBulkAsRead();
+
+  const handleMarkAllAsRead = useCallback(() => {
+    markBulkAsRead.mutate(
+      {
+        feedId: selectedFeedId ?? undefined,
+        categoryId: selectedCategoryId ?? undefined,
+      },
+      {
+        onSuccess: (data) => {
+          toast.success(tArticles('markAllAsRead.success', { count: data.count }));
+        },
+      }
+    );
+  }, [markBulkAsRead, selectedFeedId, selectedCategoryId, tArticles]);
+
+  const handleMarkPast1DayAsRead = useCallback(() => {
+    const oneDayAgo = new Date();
+    oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+    markBulkAsRead.mutate(
+      {
+        feedId: selectedFeedId ?? undefined,
+        categoryId: selectedCategoryId ?? undefined,
+        olderThan: oneDayAgo.toISOString(),
+      },
+      {
+        onSuccess: (data) => {
+          toast.success(tArticles('markAllAsRead.success', { count: data.count }));
+        },
+      }
+    );
+  }, [markBulkAsRead, selectedFeedId, selectedCategoryId, tArticles]);
   const { selectedArticleId, selectArticle } = useArticleStore();
   const { articleView, splitPosition, setSplitPosition } = useUIStore();
   const [isDragging, setIsDragging] = useState(false);
@@ -162,19 +196,52 @@ export function HomePage() {
             <div className="flex items-center justify-between mb-4">
               <h1 className="text-2xl font-bold truncate">{viewTitles[selectedView]}</h1>
               {selectedView !== 'search' && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={toggleSortOrder}
-                  className="gap-2 text-muted-foreground hover:text-foreground flex-shrink-0"
-                >
-                  {sortOrder === 'newest' ? (
-                    <ArrowDown className="w-4 h-4" />
-                  ) : (
-                    <ArrowUp className="w-4 h-4" />
-                  )}
-                  {sortOrder === 'newest' ? tArticles('sort.newestFirst') : tArticles('sort.oldestFirst')}
-                </Button>
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={toggleSortOrder}
+                    className="gap-2 text-muted-foreground hover:text-foreground"
+                  >
+                    {sortOrder === 'newest' ? (
+                      <ArrowDown className="w-4 h-4" />
+                    ) : (
+                      <ArrowUp className="w-4 h-4" />
+                    )}
+                    {sortOrder === 'newest' ? tArticles('sort.newestFirst') : tArticles('sort.oldestFirst')}
+                  </Button>
+                  <DropdownMenu.Root>
+                    <DropdownMenu.Trigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        className="text-muted-foreground hover:text-foreground"
+                      >
+                        <CheckCheck className="w-4 h-4" />
+                      </Button>
+                    </DropdownMenu.Trigger>
+                    <DropdownMenu.Portal>
+                      <DropdownMenu.Content
+                        className="min-w-[180px] glass rounded-lg p-1 shadow-lg animate-fade-in z-50 border border-gray-400/50"
+                        sideOffset={5}
+                        align="end"
+                      >
+                        <DropdownMenu.Item
+                          className="flex items-center gap-2 px-3 py-2 text-sm rounded-md cursor-pointer outline-none hover:bg-gray-100 dark:hover:bg-gray-800"
+                          onSelect={handleMarkAllAsRead}
+                        >
+                          {tArticles('markAllAsRead.all')}
+                        </DropdownMenu.Item>
+                        <DropdownMenu.Item
+                          className="flex items-center gap-2 px-3 py-2 text-sm rounded-md cursor-pointer outline-none hover:bg-gray-100 dark:hover:bg-gray-800"
+                          onSelect={handleMarkPast1DayAsRead}
+                        >
+                          {tArticles('markAllAsRead.past1Day')}
+                        </DropdownMenu.Item>
+                      </DropdownMenu.Content>
+                    </DropdownMenu.Portal>
+                  </DropdownMenu.Root>
+                </div>
               )}
             </div>
             <div className="flex-1 overflow-y-auto">
@@ -229,19 +296,52 @@ export function HomePage() {
             <div className="flex items-center justify-between mb-4">
               <h1 className="text-2xl font-bold truncate">{viewTitles[selectedView]}</h1>
               {selectedView !== 'search' && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={toggleSortOrder}
-                  className="gap-2 text-muted-foreground hover:text-foreground flex-shrink-0"
-                >
-                  {sortOrder === 'newest' ? (
-                    <ArrowDown className="w-4 h-4" />
-                  ) : (
-                    <ArrowUp className="w-4 h-4" />
-                  )}
-                  {sortOrder === 'newest' ? tArticles('sort.newestFirst') : tArticles('sort.oldestFirst')}
-                </Button>
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={toggleSortOrder}
+                    className="gap-2 text-muted-foreground hover:text-foreground"
+                  >
+                    {sortOrder === 'newest' ? (
+                      <ArrowDown className="w-4 h-4" />
+                    ) : (
+                      <ArrowUp className="w-4 h-4" />
+                    )}
+                    {sortOrder === 'newest' ? tArticles('sort.newestFirst') : tArticles('sort.oldestFirst')}
+                  </Button>
+                  <DropdownMenu.Root>
+                    <DropdownMenu.Trigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        className="text-muted-foreground hover:text-foreground"
+                      >
+                        <CheckCheck className="w-4 h-4" />
+                      </Button>
+                    </DropdownMenu.Trigger>
+                    <DropdownMenu.Portal>
+                      <DropdownMenu.Content
+                        className="min-w-[180px] glass rounded-lg p-1 shadow-lg animate-fade-in z-50 border border-gray-400/50"
+                        sideOffset={5}
+                        align="end"
+                      >
+                        <DropdownMenu.Item
+                          className="flex items-center gap-2 px-3 py-2 text-sm rounded-md cursor-pointer outline-none hover:bg-gray-100 dark:hover:bg-gray-800"
+                          onSelect={handleMarkAllAsRead}
+                        >
+                          {tArticles('markAllAsRead.all')}
+                        </DropdownMenu.Item>
+                        <DropdownMenu.Item
+                          className="flex items-center gap-2 px-3 py-2 text-sm rounded-md cursor-pointer outline-none hover:bg-gray-100 dark:hover:bg-gray-800"
+                          onSelect={handleMarkPast1DayAsRead}
+                        >
+                          {tArticles('markAllAsRead.past1Day')}
+                        </DropdownMenu.Item>
+                      </DropdownMenu.Content>
+                    </DropdownMenu.Portal>
+                  </DropdownMenu.Root>
+                </div>
               )}
             </div>
             <div className="flex-1 overflow-y-auto">
@@ -308,19 +408,52 @@ export function HomePage() {
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold truncate">{viewTitles[selectedView]}</h1>
           {selectedView !== 'search' && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={toggleSortOrder}
-              className="gap-2 text-muted-foreground hover:text-foreground flex-shrink-0"
-            >
-              {sortOrder === 'newest' ? (
-                <ArrowDown className="w-4 h-4" />
-              ) : (
-                <ArrowUp className="w-4 h-4" />
-              )}
-              {sortOrder === 'newest' ? tArticles('sort.newestFirst') : tArticles('sort.oldestFirst')}
-            </Button>
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={toggleSortOrder}
+                className="gap-2 text-muted-foreground hover:text-foreground"
+              >
+                {sortOrder === 'newest' ? (
+                  <ArrowDown className="w-4 h-4" />
+                ) : (
+                  <ArrowUp className="w-4 h-4" />
+                )}
+                {sortOrder === 'newest' ? tArticles('sort.newestFirst') : tArticles('sort.oldestFirst')}
+              </Button>
+              <DropdownMenu.Root>
+                <DropdownMenu.Trigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <CheckCheck className="w-4 h-4" />
+                  </Button>
+                </DropdownMenu.Trigger>
+                <DropdownMenu.Portal>
+                  <DropdownMenu.Content
+                    className="min-w-[180px] glass rounded-lg p-1 shadow-lg animate-fade-in z-50 border border-gray-400/50"
+                    sideOffset={5}
+                    align="end"
+                  >
+                    <DropdownMenu.Item
+                      className="flex items-center gap-2 px-3 py-2 text-sm rounded-md cursor-pointer outline-none hover:bg-gray-100 dark:hover:bg-gray-800"
+                      onSelect={handleMarkAllAsRead}
+                    >
+                      {tArticles('markAllAsRead.all')}
+                    </DropdownMenu.Item>
+                    <DropdownMenu.Item
+                      className="flex items-center gap-2 px-3 py-2 text-sm rounded-md cursor-pointer outline-none hover:bg-gray-100 dark:hover:bg-gray-800"
+                      onSelect={handleMarkPast1DayAsRead}
+                    >
+                      {tArticles('markAllAsRead.past1Day')}
+                    </DropdownMenu.Item>
+                  </DropdownMenu.Content>
+                </DropdownMenu.Portal>
+              </DropdownMenu.Root>
+            </div>
           )}
         </div>
         <div className="flex-1 overflow-y-auto">

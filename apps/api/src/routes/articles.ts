@@ -31,6 +31,7 @@ const markBulkReadSchema = z.object({
   articleIds: z.array(z.string().uuid()).optional(),
   feedId: z.string().uuid().optional(),
   categoryId: z.string().uuid().optional(),
+  olderThan: z.string().datetime().optional(),
 });
 
 type ArticleIdParams = z.infer<typeof articleIdSchema>;
@@ -46,6 +47,48 @@ router.get('/', validateQuery(articleListSchema), async (req, res, next) => {
       success: true,
       data: result.articles,
       pagination: result.pagination,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// GET /api/v1/articles/unread-count - Get unread article count
+// NOTE: This must come before /:id route
+router.get('/unread-count', async (req, res, next) => {
+  try {
+    const result = await articleService.getUnreadCount(req.user!.userId);
+    res.json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// GET /api/v1/articles/unread-counts-by-category - Get unread counts per category
+// NOTE: This must come before /:id route
+router.get('/unread-counts-by-category', async (req, res, next) => {
+  try {
+    const result = await articleService.getUnreadCountsByCategory(req.user!.userId);
+    res.json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// GET /api/v1/articles/unread-counts-by-feed - Get unread counts per feed
+// NOTE: This must come before /:id route
+router.get('/unread-counts-by-feed', async (req, res, next) => {
+  try {
+    const result = await articleService.getUnreadCountsByFeed(req.user!.userId);
+    res.json({
+      success: true,
+      data: result,
     });
   } catch (error) {
     next(error);
@@ -110,7 +153,8 @@ router.post('/mark-read', validate(markBulkReadSchema), async (req, res, next) =
       req.user!.userId,
       req.body.articleIds,
       req.body.feedId,
-      req.body.categoryId
+      req.body.categoryId,
+      req.body.olderThan ? new Date(req.body.olderThan) : undefined
     );
     res.json({
       success: true,

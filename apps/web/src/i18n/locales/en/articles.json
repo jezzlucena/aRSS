@@ -69,5 +69,11 @@
     "label": "Sort",
     "newestFirst": "Newest first",
     "oldestFirst": "Oldest first"
+  },
+  "markAllAsRead": {
+    "title": "Mark as read",
+    "all": "Mark all as read",
+    "past1Day": "Past 1 day",
+    "success": "{{count}} articles marked as read"
   }
 }

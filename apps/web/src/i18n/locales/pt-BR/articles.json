@@ -69,5 +69,11 @@
     "label": "Ordenar",
     "newestFirst": "Mais recentes",
     "oldestFirst": "Mais antigos"
+  },
+  "markAllAsRead": {
+    "title": "Marcar como lido",
+    "all": "Marcar tudo como lido",
+    "past1Day": "Último dia",
+    "success": "{{count}} artigos marcados como lidos"
   }
 }

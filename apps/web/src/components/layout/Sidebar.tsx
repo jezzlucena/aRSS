@@ -27,7 +27,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui';
 import { useUIStore } from '@/stores/uiStore';
 import { useAuthStore } from '@/stores/authStore';
-import { useFeeds, useUpdatePreferences, useRefreshFeed, useDeleteFeed } from '@/hooks';
+import { useFeeds, useUpdatePreferences, useRefreshFeed, useDeleteFeed, useUnreadCount, useUnreadCountsByFeed } from '@/hooks';
 import { AddFeedModal, EditFeedModal } from '@/components/feeds';
 import { CategoryTree, CategoryModal } from '@/components/categories';
 import { OPMLModal } from '@/components/settings';
@@ -82,9 +82,10 @@ interface FeedNavItemProps {
   collapsed: boolean;
   onClick: () => void;
   onEdit: () => void;
+  unreadCount?: number;
 }
 
-function FeedNavItem({ subscription, isActive, collapsed, onClick, onEdit }: FeedNavItemProps) {
+function FeedNavItem({ subscription, isActive, collapsed, onClick, onEdit, unreadCount }: FeedNavItemProps) {
   const { t } = useTranslation('feeds');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const refreshFeed = useRefreshFeed();
@@ -131,6 +132,11 @@ function FeedNavItem({ subscription, isActive, collapsed, onClick, onEdit }: Fee
             {displayTitle}
           </span>
         )}
+        {!collapsed && unreadCount !== undefined && unreadCount > 0 && (
+          <span className="flex-shrink-0 mr-6 px-1.5 py-0.5 text-xs font-medium bg-accent-500/20 text-accent-600 dark:text-accent-400 rounded-full">
+            {unreadCount > 99 ? '99+' : unreadCount}
+          </span>
+        )}
       </button>
 
       {/* Context menu trigger - only show when not collapsed */}
@@ -151,7 +157,7 @@ function FeedNavItem({ subscription, isActive, collapsed, onClick, onEdit }: Fee
 
           <DropdownMenu.Portal>
             <DropdownMenu.Content
-              className="min-w-[180px] glass rounded-lg p-1 shadow-lg animate-fade-in z-50"
+              className="min-w-[180px] glass rounded-lg p-1 shadow-lg animate-fade-in z-50 border-gray-400/50"
               sideOffset={5}
               align="end"
             >
@@ -223,6 +229,8 @@ export function Sidebar() {
   const updatePreferences = useUpdatePreferences();
 
   const { data: feeds = [] } = useFeeds();
+  const { data: unreadCount = 0 } = useUnreadCount();
+  const { data: feedUnreadCounts = {} } = useUnreadCountsByFeed();
 
   const isSettingsPage = location.pathname === '/settings';
 
@@ -297,6 +305,7 @@ export function Sidebar() {
             label={t('sidebar.unread')}
             isActive={location.pathname === '/unread'}
             collapsed={sidebarCollapsed}
+            badge={unreadCount}
             onClick={() => handleNavClick('unread')}
           />
           <NavItem
@@ -350,6 +359,7 @@ export function Sidebar() {
                     collapsed={sidebarCollapsed}
                     onClick={() => handleFeedClick(subscription.feedId)}
                     onEdit={() => setEditingFeed(subscription)}
+                    unreadCount={feedUnreadCounts[subscription.feedId]}
                   />
                 ))
               )}
@@ -372,7 +382,7 @@ export function Sidebar() {
 
             <DropdownMenu.Portal>
               <DropdownMenu.Content
-                className="min-w-[200px] border-gray-400/50 glass rounded-lg p-1 shadow-lg animate-fade-in z-50"
+                className="min-w-[200px] border-gray-400/50 glass rounded-lg p-1 shadow-lg animate-fade-in z-50 border-gray-400/50"
                 side="top"
                 sideOffset={5}
                 align="start"

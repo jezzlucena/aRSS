@@ -117,6 +117,12 @@ export function useMarkAsRead() {
         queryClient.setQueryData<ArticleWithState>(['article', articleId], { ...articleFromList, isRead: true });
       }
     },
+    onSuccess: () => {
+      // Update unread counts after marking as read
+      queryClient.invalidateQueries({ queryKey: ['unread-count'] });
+      queryClient.invalidateQueries({ queryKey: ['unread-counts-by-category'] });
+      queryClient.invalidateQueries({ queryKey: ['unread-counts-by-feed'] });
+    },
     onError: (_error, articleId) => {
       // Revert the optimistic update on error
       queryClient.invalidateQueries({ queryKey: ['articles'] });
@@ -178,6 +184,12 @@ export function useMarkAsUnread() {
       } else if (articleFromList) {
         queryClient.setQueryData<ArticleWithState>(['article', articleId], { ...articleFromList, isRead: false });
       }
+    },
+    onSuccess: () => {
+      // Update unread counts after marking as unread
+      queryClient.invalidateQueries({ queryKey: ['unread-count'] });
+      queryClient.invalidateQueries({ queryKey: ['unread-counts-by-category'] });
+      queryClient.invalidateQueries({ queryKey: ['unread-counts-by-feed'] });
     },
     onError: (_error, articleId) => {
       // Revert the optimistic update on error
@@ -337,12 +349,15 @@ export function useMarkBulkAsRead() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (params: { articleIds?: string[]; feedId?: string; categoryId?: string }) => {
+    mutationFn: async (params: { articleIds?: string[]; feedId?: string; categoryId?: string; olderThan?: string }) => {
       const response = await api.post<{ success: boolean; data: { count: number } }>('/articles/mark-read', params);
       return response.data.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['articles'] });
+      queryClient.invalidateQueries({ queryKey: ['unread-count'] });
+      queryClient.invalidateQueries({ queryKey: ['unread-counts-by-category'] });
+      queryClient.invalidateQueries({ queryKey: ['unread-counts-by-feed'] });
     },
   });
 }
@@ -358,5 +373,41 @@ export function useSearch(query: string) {
       };
     },
     enabled: query.length > 0,
+  });
+}
+
+export function useUnreadCount() {
+  return useQuery({
+    queryKey: ['unread-count'],
+    queryFn: async () => {
+      const response = await api.get<{ success: boolean; data: { count: number } }>('/articles/unread-count');
+      return response.data.data.count;
+    },
+    // Refetch periodically to keep the count fresh
+    refetchInterval: 60000, // every minute
+  });
+}
+
+export function useUnreadCountsByCategory() {
+  return useQuery({
+    queryKey: ['unread-counts-by-category'],
+    queryFn: async () => {
+      const response = await api.get<{ success: boolean; data: { counts: Record<string, number> } }>('/articles/unread-counts-by-category');
+      return response.data.data.counts;
+    },
+    // Refetch periodically to keep the counts fresh
+    refetchInterval: 60000, // every minute
+  });
+}
+
+export function useUnreadCountsByFeed() {
+  return useQuery({
+    queryKey: ['unread-counts-by-feed'],
+    queryFn: async () => {
+      const response = await api.get<{ success: boolean; data: { counts: Record<string, number> } }>('/articles/unread-counts-by-feed');
+      return response.data.data.counts;
+    },
+    // Refetch periodically to keep the counts fresh
+    refetchInterval: 60000, // every minute
   });
 }

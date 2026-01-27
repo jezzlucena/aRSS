@@ -14,6 +14,7 @@ import {
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Button } from '@/components/ui';
 import { useCategories, useDeleteCategory } from '@/hooks/useCategories';
+import { useUnreadCountsByCategory } from '@/hooks/useArticles';
 import { cn } from '@/lib/utils';
 import type { Category, CategoryWithChildren } from '@arss/types';
 
@@ -21,9 +22,10 @@ interface CategoryItemProps {
   category: CategoryWithChildren;
   level: number;
   onEdit: (category: Category) => void;
+  unreadCounts: Record<string, number>;
 }
 
-function CategoryItem({ category, level, onEdit }: CategoryItemProps) {
+function CategoryItem({ category, level, onEdit, unreadCounts }: CategoryItemProps) {
   const { t } = useTranslation('navigation');
   const [isExpanded, setIsExpanded] = useState(true);
   const navigate = useNavigate();
@@ -82,6 +84,13 @@ function CategoryItem({ category, level, onEdit }: CategoryItemProps) {
           <span className="text-sm font-medium truncate">{category.name}</span>
         </button>
 
+        {/* Unread count badge */}
+        {unreadCounts[category.id] > 0 && (
+          <span className="flex-shrink-0 px-1.5 py-0.5 text-xs font-medium bg-accent-500/20 text-accent-600 dark:text-accent-400 rounded-full">
+            {unreadCounts[category.id] > 99 ? '99+' : unreadCounts[category.id]}
+          </span>
+        )}
+
         {/* Actions */}
         <DropdownMenu.Root>
           <DropdownMenu.Trigger asChild>
@@ -97,7 +106,7 @@ function CategoryItem({ category, level, onEdit }: CategoryItemProps) {
 
           <DropdownMenu.Portal>
             <DropdownMenu.Content
-              className="min-w-[160px] glass rounded-lg p-1 shadow-lg animate-fade-in z-50"
+              className="min-w-[160px] border-gray-400/50 glass rounded-lg p-1 shadow-lg animate-fade-in z-50"
               sideOffset={5}
             >
               <DropdownMenu.Item
@@ -137,6 +146,7 @@ function CategoryItem({ category, level, onEdit }: CategoryItemProps) {
                 category={child}
                 level={level + 1}
                 onEdit={onEdit}
+                unreadCounts={unreadCounts}
               />
             ))}
           </motion.div>
@@ -155,6 +165,7 @@ export function CategoryTree({ onAddCategory, onEditCategory }: CategoryTreeProp
   const { t } = useTranslation('navigation');
 
   const { data: categories = [] } = useCategories();
+  const { data: unreadCounts = {} } = useUnreadCountsByCategory();
 
   return (
     <div className="space-y-1">
@@ -183,6 +194,7 @@ export function CategoryTree({ onAddCategory, onEditCategory }: CategoryTreeProp
             category={category as CategoryWithChildren}
             level={0}
             onEdit={onEditCategory}
+            unreadCounts={unreadCounts}
           />
         ))
       )}
