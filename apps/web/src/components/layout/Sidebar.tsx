@@ -382,7 +382,7 @@ export function Sidebar() {
 
             <DropdownMenu.Portal>
               <DropdownMenu.Content
-                className="min-w-[200px] border-gray-400/50 glass rounded-lg p-1 shadow-lg animate-fade-in z-50 border-gray-400/50"
+                className="min-w-[200px] border-gray-400/50 glass rounded-lg p-1 shadow-lg animate-fade-in z-50"
                 side="top"
                 sideOffset={5}
                 align="start"
