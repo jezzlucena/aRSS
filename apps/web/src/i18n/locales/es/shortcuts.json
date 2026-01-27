@@ -1,16 +1,14 @@
 {
   "title": "Atajos de Teclado",
-  "helpText": "Presiona ? para mostrar esta ayuda",
-  "descriptions": {
-    "nextArticle": "Siguiente artículo",
-    "previousArticle": "Artículo anterior",
-    "openArticle": "Abrir artículo",
-    "closeArticle": "Cerrar artículo",
-    "markAsRead": "Marcar como leído/no leído",
-    "toggleSaved": "Guardar/quitar artículo",
-    "openOriginal": "Abrir enlace original",
-    "refresh": "Actualizar feeds",
-    "search": "Enfocar búsqueda",
-    "showShortcuts": "Mostrar atajos de teclado"
-  }
+  "pressHint": "Presiona",
+  "toShowHelp": "para mostrar esta ayuda",
+  "nextArticle": "Siguiente artículo",
+  "prevArticle": "Artículo anterior",
+  "openArticle": "Abrir artículo",
+  "toggleReadUnread": "Marcar como leído/no leído",
+  "toggleSaved": "Guardar/quitar artículo",
+  "focusSearch": "Enfocar búsqueda",
+  "deselectClose": "Deseleccionar/cerrar",
+  "goToLast": "Ir al último artículo",
+  "showHelp": "Mostrar atajos de teclado"
 }

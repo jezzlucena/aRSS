@@ -29,7 +29,7 @@ export function ArticleList({ onSelectArticle, sortOrder = 'newest' }: ArticleLi
     categoryId: selectedCategoryId ?? undefined,
     isRead: selectedView === 'unread' ? false : undefined,
     isSaved: selectedView === 'saved' ? true : undefined,
-    sortOrder: sortOrder === 'newest' ? 'desc' : 'asc' as const,
+    sortOrder: (sortOrder === 'newest' ? 'desc' : 'asc') as 'desc' | 'asc',
   };
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =

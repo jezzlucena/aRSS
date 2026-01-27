@@ -33,7 +33,10 @@
     "refreshed": "Feed refreshed",
     "failedToAdd": "Failed to add feed",
     "failedToRemove": "Failed to remove feed",
-    "failedToRefresh": "Failed to refresh feed"
+    "failedToRefresh": "Failed to refresh feed",
+    "addFailed": "Failed to add feed",
+    "removeFailed": "Failed to remove feed",
+    "refreshFailed": "Failed to refresh feed"
   },
   "categoryModal": {
     "editTitle": "Edit Category",

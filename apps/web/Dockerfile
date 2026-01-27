@@ -7,7 +7,7 @@ RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
 WORKDIR /app
 
 # Copy workspace files
-COPY pnpm-lock.yaml pnpm-workspace.yaml package.json turbo.json ./
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json turbo.json tsconfig.json ./
 COPY packages ./packages
 COPY apps/web ./apps/web
 
@@ -20,8 +20,8 @@ ARG VITE_API_URL=/api/v1
 # Set build-time environment variables
 ENV VITE_API_URL=$VITE_API_URL
 
-# Build the web app
-RUN pnpm turbo run build --filter=@arss/web
+# Build packages and web app
+RUN pnpm turbo run build --filter=@arss/web...
 
 # Production stage - nginx for serving static files
 FROM nginx:alpine AS runner

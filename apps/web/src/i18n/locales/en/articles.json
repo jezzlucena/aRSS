@@ -45,7 +45,10 @@
     "removed": "Article removed from saved",
     "failedToMarkRead": "Failed to mark article as read",
     "failedToMarkUnread": "Failed to mark article as unread",
-    "failedToSave": "Failed to update saved status"
+    "failedToSave": "Failed to update saved status",
+    "markReadFailed": "Failed to mark article as read",
+    "markUnreadFailed": "Failed to mark article as unread",
+    "saveFailed": "Failed to update saved status"
   },
   "time": {
     "justNow": "just now",

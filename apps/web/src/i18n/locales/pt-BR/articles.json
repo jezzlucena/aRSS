@@ -45,7 +45,10 @@
     "removed": "Artigo removido dos salvos",
     "failedToMarkRead": "Falha ao marcar artigo como lido",
     "failedToMarkUnread": "Falha ao marcar artigo como não lido",
-    "failedToSave": "Falha ao atualizar status de salvamento"
+    "failedToSave": "Falha ao atualizar status de salvamento",
+    "markReadFailed": "Falha ao marcar artigo como lido",
+    "markUnreadFailed": "Falha ao marcar artigo como não lido",
+    "saveFailed": "Falha ao atualizar status de salvamento"
   },
   "time": {
     "justNow": "agora mesmo",

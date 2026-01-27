@@ -45,7 +45,10 @@
     "removed": "Artículo quitado de guardados",
     "failedToMarkRead": "Error al marcar artículo como leído",
     "failedToMarkUnread": "Error al marcar artículo como no leído",
-    "failedToSave": "Error al actualizar estado de guardado"
+    "failedToSave": "Error al actualizar estado de guardado",
+    "markReadFailed": "Error al marcar artículo como leído",
+    "markUnreadFailed": "Error al marcar artículo como no leído",
+    "saveFailed": "Error al actualizar estado de guardado"
   },
   "time": {
     "justNow": "ahora mismo",

@@ -33,7 +33,10 @@
     "refreshed": "Feed actualizado",
     "failedToAdd": "Error al añadir feed",
     "failedToRemove": "Error al eliminar feed",
-    "failedToRefresh": "Error al actualizar feed"
+    "failedToRefresh": "Error al actualizar feed",
+    "addFailed": "Error al añadir feed",
+    "removeFailed": "Error al eliminar feed",
+    "refreshFailed": "Error al actualizar feed"
   },
   "categoryModal": {
     "editTitle": "Editar Categoría",

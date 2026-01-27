@@ -18,8 +18,8 @@ export function usePreferences() {
   useEffect(() => {
     if (query.data) {
       setTheme(query.data.theme as 'light' | 'dark' | 'system');
-      setLayout(query.data.layout as 'list' | 'cards' | 'magazine');
-      setArticleView(query.data.articleView as 'split' | 'overlay' | 'full');
+      setLayout(query.data.layout as 'compact' | 'list' | 'cards' | 'magazine');
+      setArticleView(query.data.articleView as 'split-horizontal' | 'split-vertical' | 'overlay' | 'full');
       setAccentColor(query.data.accentColor);
     }
   }, [query.data, setTheme, setLayout, setArticleView, setAccentColor]);

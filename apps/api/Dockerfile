@@ -7,15 +7,15 @@ RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
 WORKDIR /app
 
 # Copy workspace files
-COPY pnpm-lock.yaml pnpm-workspace.yaml package.json turbo.json ./
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json turbo.json tsconfig.json ./
 COPY packages ./packages
 COPY apps/api ./apps/api
 
 # Install dependencies
 RUN pnpm install --frozen-lockfile
 
-# Build the API
-RUN pnpm turbo run build --filter=@arss/api
+# Build packages and API
+RUN pnpm turbo run build --filter=@arss/api...
 
 # Production stage
 FROM node:20-alpine AS runner
@@ -29,9 +29,16 @@ WORKDIR /app
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 arss
 
-# Copy built files and dependencies
+# Copy workspace config
 COPY --from=builder /app/pnpm-lock.yaml /app/pnpm-workspace.yaml /app/package.json ./
-COPY --from=builder /app/packages ./packages
+
+# Copy packages with their built dist folders
+COPY --from=builder /app/packages/types/package.json ./packages/types/
+COPY --from=builder /app/packages/types/dist ./packages/types/dist
+COPY --from=builder /app/packages/utils/package.json ./packages/utils/
+COPY --from=builder /app/packages/utils/dist ./packages/utils/dist
+
+# Copy API with built dist folder
 COPY --from=builder /app/apps/api/package.json ./apps/api/
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
 COPY --from=builder /app/apps/api/src/db/migrations ./apps/api/src/db/migrations
