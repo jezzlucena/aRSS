@@ -4,6 +4,9 @@ import { env } from '../config/env.js';
 import { fetchFeedArticles } from '../services/feedService.js';
 import { db, feeds, subscriptions } from '../db/index.js';
 import { eq, lt, or, isNull } from 'drizzle-orm';
+import { createLogger } from '../lib/logger.js';
+
+const logger = createLogger('FeedWorker');
 
 const connection = new IORedis(env.REDIS_URL, {
   maxRetriesPerRequest: null,
@@ -17,14 +20,14 @@ export const feedWorker = new Worker(
   'feed-refresh',
   async (job: Job<{ feedId: string; feedUrl: string }>) => {
     const { feedId, feedUrl } = job.data;
-    console.log(`[Feed Worker] Refreshing feed: ${feedId}`);
+    logger.info('Refreshing feed', { feedId });
 
     try {
       const count = await fetchFeedArticles(feedId, feedUrl);
-      console.log(`[Feed Worker] Fetched ${count} new articles for feed ${feedId}`);
+      logger.info('Fetched new articles', { feedId, count });
       return { success: true, newArticles: count };
     } catch (error) {
-      console.error(`[Feed Worker] Error refreshing feed ${feedId}:`, error);
+      logger.error('Error refreshing feed', error, { feedId });
       throw error;
     }
   },
@@ -39,11 +42,11 @@ export const feedWorker = new Worker(
 );
 
 feedWorker.on('completed', (job, result) => {
-  console.log(`[Feed Worker] Job ${job.id} completed:`, result);
+  logger.debug('Job completed', { jobId: job.id, result });
 });
 
 feedWorker.on('failed', (job, error) => {
-  console.error(`[Feed Worker] Job ${job?.id} failed:`, error.message);
+  logger.error('Job failed', error, { jobId: job?.id });
 });
 
 // Schedule refresh for a single feed
@@ -76,7 +79,7 @@ export async function scheduleAllFeedsRefresh() {
     ),
   });
 
-  console.log(`[Feed Worker] Scheduling refresh for ${feedsToRefresh.length} feeds`);
+  logger.info('Scheduling feed refresh', { count: feedsToRefresh.length });
 
   for (const feed of feedsToRefresh) {
     await scheduleFeedRefresh(feed.id, feed.url);

@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -6,6 +5,7 @@ import { Sun, Moon, RefreshCw, LayoutGrid, Rows2, Newspaper, Rows4, PanelTop, Pa
 import { Button } from '@/components/ui';
 import { SearchInput } from '@/components/search';
 import { useUIStore } from '@/stores/uiStore';
+import { useFeeds, useRefreshAllFeeds } from '@/hooks/useFeeds';
 import { cn } from '@/lib/utils';
 
 export function Header() {
@@ -14,7 +14,8 @@ export function Header() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { theme, setTheme, layout, setLayout, articleView, setArticleView } = useUIStore();
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const { data: feeds = [] } = useFeeds();
+  const refreshAllFeeds = useRefreshAllFeeds();
   const searchQuery = searchParams.get('q') || '';
 
   const handleSearchSubmit = (query: string) => {
@@ -25,12 +26,14 @@ export function Header() {
     }
   };
 
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    // TODO: Implement refresh logic
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setIsRefreshing(false);
+  const handleRefresh = () => {
+    const feedIds = feeds.map((sub) => sub.feedId);
+    if (feedIds.length > 0) {
+      refreshAllFeeds.mutate(feedIds);
+    }
   };
+
+  const isRefreshing = refreshAllFeeds.isPending;
 
   const toggleTheme = () => {
     if (theme === 'dark') setTheme('light');
@@ -108,11 +111,12 @@ export function Header() {
           size="icon"
           onClick={handleRefresh}
           disabled={isRefreshing}
+          className="-mr-3"
         >
           <motion.div
             animate={{ rotate: isRefreshing ? 360 : 0 }}
             transition={{
-              duration: 1,
+              duration: isRefreshing ? 1 : 0.2,
               repeat: isRefreshing ? Infinity : 0,
               ease: 'linear',
             }}

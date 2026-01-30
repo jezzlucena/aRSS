@@ -11,8 +11,9 @@ COPY pnpm-lock.yaml pnpm-workspace.yaml package.json turbo.json tsconfig.json ./
 COPY packages ./packages
 COPY apps/web ./apps/web
 
-# Install dependencies
-RUN pnpm install --frozen-lockfile
+# Install dependencies (with cache mount for pnpm store)
+RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile
 
 # Build arguments for environment variables
 ARG VITE_API_URL=/api/v1
@@ -44,7 +45,7 @@ RUN chown -R nginx:nginx /usr/share/nginx/html && \
 # Switch to non-root user
 USER nginx
 
-EXPOSE 80
+EXPOSE 8088
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \

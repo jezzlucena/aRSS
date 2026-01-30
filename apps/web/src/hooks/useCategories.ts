@@ -1,34 +1,26 @@
-import { useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
-import { useFeedStore } from '@/stores/feedStore';
+import { queryKeys } from '@/lib/queryKeys';
 import type { Category, CategoryWithChildren, CreateCategoryRequest, UpdateCategoryRequest } from '@arss/types';
 
 export function useCategories() {
-  const { setCategories } = useFeedStore();
-
-  const query = useQuery({
-    queryKey: ['categories'],
+  return useQuery({
+    queryKey: queryKeys.categories(),
     queryFn: async () => {
       const response = await api.get<{ success: boolean; data: CategoryWithChildren[] }>('/categories');
       return response.data.data;
     },
   });
+}
 
-  useEffect(() => {
-    if (query.data) {
-      // Flatten for the store
-      const flatten = (cats: CategoryWithChildren[]): Category[] => {
-        return cats.flatMap((c) => [
-          { ...c, children: undefined } as unknown as Category,
-          ...flatten(c.children),
-        ]);
-      };
-      setCategories(flatten(query.data));
-    }
-  }, [query.data, setCategories]);
-
-  return query;
+/**
+ * Helper to flatten a hierarchical category tree into a flat array.
+ */
+export function flattenCategories(categories: CategoryWithChildren[]): Category[] {
+  return categories.flatMap((c) => [
+    { ...c, children: undefined } as unknown as Category,
+    ...flattenCategories(c.children),
+  ]);
 }
 
 export function useCreateCategory() {
@@ -40,7 +32,7 @@ export function useCreateCategory() {
       return response.data.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.categories() });
     },
   });
 }
@@ -54,7 +46,7 @@ export function useUpdateCategory() {
       return response.data.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.categories() });
     },
   });
 }
@@ -67,8 +59,8 @@ export function useDeleteCategory() {
       await api.delete(`/categories/${categoryId}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['categories'] });
-      queryClient.invalidateQueries({ queryKey: ['feeds'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.categories() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.feeds() });
     },
   });
 }

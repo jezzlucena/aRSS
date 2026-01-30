@@ -41,9 +41,29 @@
     "medium": "Mediano",
     "large": "Grande"
   },
+  "articleWidth": {
+    "title": "Ancho del Artículo",
+    "description": "Elige el ancho del área de contenido del artículo",
+    "narrow": "Angosto",
+    "wide": "Ancho",
+    "full": "Ancho Completo"
+  },
   "language": {
     "title": "Idioma",
     "description": "Elige tu idioma preferido"
+  },
+  "profile": {
+    "title": "Perfil",
+    "description": "Actualiza tu información personal",
+    "name": "Nombre Completo",
+    "namePlaceholder": "Ingresa tu nombre completo",
+    "email": "Correo Electrónico",
+    "emailPlaceholder": "Ingresa tu correo electrónico",
+    "saveChanges": "Guardar Cambios",
+    "saving": "Guardando...",
+    "saved": "Perfil actualizado con éxito",
+    "saveFailed": "Error al actualizar el perfil",
+    "emailInUse": "Este correo electrónico ya está en uso"
   },
   "security": {
     "title": "Seguridad",

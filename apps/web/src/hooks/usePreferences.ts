@@ -5,7 +5,7 @@ import { useUIStore } from '@/stores/uiStore';
 import type { UserPreferences } from '@arss/types';
 
 export function usePreferences() {
-  const { setTheme, setLayout, setArticleView, setAccentColor } = useUIStore();
+  const { setTheme, setLayout, setArticleView, setAccentColor, setArticleWidth } = useUIStore();
 
   const query = useQuery({
     queryKey: ['preferences'],
@@ -21,8 +21,11 @@ export function usePreferences() {
       setLayout(query.data.layout as 'compact' | 'list' | 'cards' | 'magazine');
       setArticleView(query.data.articleView as 'split-horizontal' | 'split-vertical' | 'overlay' | 'full');
       setAccentColor(query.data.accentColor);
+      if (query.data.articleWidth) {
+        setArticleWidth(query.data.articleWidth as 'narrow' | 'wide' | 'full');
+      }
     }
-  }, [query.data, setTheme, setLayout, setArticleView, setAccentColor]);
+  }, [query.data, setTheme, setLayout, setArticleView, setAccentColor, setArticleWidth]);
 
   return query;
 }
@@ -31,7 +34,7 @@ export function useUpdatePreferences() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (data: Partial<Pick<UserPreferences, 'theme' | 'layout' | 'articleView' | 'accentColor' | 'fontSize'>>) => {
+    mutationFn: async (data: Partial<Pick<UserPreferences, 'theme' | 'layout' | 'articleView' | 'accentColor' | 'fontSize' | 'articleWidth'>>) => {
       const response = await api.patch<{ success: boolean; data: UserPreferences }>('/preferences', data);
       return response.data.data;
     },

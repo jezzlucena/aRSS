@@ -15,6 +15,7 @@ export interface UserPreferences {
   layout: 'compact' | 'list' | 'cards' | 'magazine';
   articleView: 'split-horizontal' | 'split-vertical' | 'overlay' | 'full';
   fontSize: 'small' | 'medium' | 'large';
+  articleWidth: 'narrow' | 'wide' | 'full';
   createdAt: Date;
   updatedAt: Date;
 }
@@ -175,4 +176,16 @@ export interface OPMLOutline {
   xmlUrl?: string;
   htmlUrl?: string;
   children?: OPMLOutline[];
+}
+
+// API Error types
+export interface ApiError {
+  success: false;
+  error: string;
+  details?: { path: string; message: string }[];
+}
+
+export interface ApiValidationError {
+  path: string;
+  message: string;
 }

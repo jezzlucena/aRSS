@@ -75,8 +75,8 @@
   },
   "markAllAsRead": {
     "title": "Mark as read",
-    "all": "Mark all as read",
-    "past1Day": "Past 1 day",
+    "all": "All",
+    "past1Day": "Except last 24h",
     "success": "{{count}} articles marked as read"
   }
 }

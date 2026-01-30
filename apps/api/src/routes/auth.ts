@@ -27,6 +27,13 @@ const changePasswordSchema = z.object({
   newPassword: z.string().min(8, 'New password must be at least 8 characters'),
 });
 
+const updateProfileSchema = z.object({
+  name: z.string().min(1, 'Name is required').max(255).optional(),
+  email: z.string().email('Invalid email address').optional(),
+}).refine(data => data.name !== undefined || data.email !== undefined, {
+  message: 'At least one field (name or email) must be provided',
+});
+
 // POST /api/v1/auth/register
 router.post('/register', authLimiter, validate(registerSchema), async (req, res, next) => {
   try {
@@ -99,6 +106,19 @@ router.post('/change-password', authenticate, validate(changePasswordSchema), as
     res.json({
       success: true,
       message: 'Password changed successfully',
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// PATCH /api/v1/auth/profile
+router.patch('/profile', authenticate, validate(updateProfileSchema), async (req, res, next) => {
+  try {
+    const user = await authService.updateProfile(req.user!.userId, req.body);
+    res.json({
+      success: true,
+      data: user,
     });
   } catch (error) {
     next(error);

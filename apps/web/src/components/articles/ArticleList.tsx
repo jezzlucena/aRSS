@@ -1,13 +1,17 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
-import { Rss, BookOpen } from 'lucide-react';
-import { Card, CardContent, Spinner, ArticleListSkeleton } from '@/components/ui';
-import { useArticles, useMarkAsRead, useTimeFormat } from '@/hooks';
+import { BookOpen } from 'lucide-react';
+import { Spinner, ArticleListSkeleton } from '@/components/ui';
+import { useArticles, useMarkAsRead, useInfiniteScroll } from '@/hooks';
 import { useUIStore } from '@/stores/uiStore';
 import { useArticleStore } from '@/stores/articleStore';
 import { useFeedStore } from '@/stores/feedStore';
 import { cn } from '@/lib/utils';
+import { CompactArticleRow } from './CompactArticleRow';
+import { ListArticleCard } from './ListArticleCard';
+import { GridArticleCard } from './GridArticleCard';
+import { MagazineArticleCard } from './MagazineArticleCard';
 import type { ArticleWithState } from '@arss/types';
 
 type SortOrder = 'newest' | 'oldest';
@@ -22,7 +26,6 @@ export function ArticleList({ onSelectArticle, sortOrder = 'newest' }: ArticleLi
   const { layout } = useUIStore();
   const { selectedArticleId } = useArticleStore();
   const { selectedFeedId, selectedCategoryId, selectedView } = useFeedStore();
-  const loadMoreRef = useRef<HTMLDivElement>(null);
 
   const filters = {
     feedId: selectedFeedId ?? undefined,
@@ -32,10 +35,14 @@ export function ArticleList({ onSelectArticle, sortOrder = 'newest' }: ArticleLi
     sortOrder: (sortOrder === 'newest' ? 'desc' : 'asc') as 'desc' | 'asc',
   };
 
-  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
-    useArticles(filters);
-
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useArticles(filters);
   const markAsRead = useMarkAsRead();
+
+  const loadMoreRef = useInfiniteScroll({
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+  });
 
   const articles = data?.pages.flatMap((page) => page.articles) ?? [];
 
@@ -48,24 +55,6 @@ export function ArticleList({ onSelectArticle, sortOrder = 'newest' }: ArticleLi
     },
     [markAsRead, onSelectArticle]
   );
-
-  // Infinite scroll observer
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
-          fetchNextPage();
-        }
-      },
-      { threshold: 0.1 }
-    );
-
-    if (loadMoreRef.current) {
-      observer.observe(loadMoreRef.current);
-    }
-
-    return () => observer.disconnect();
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   if (isLoading) {
     return <ArticleListSkeleton layout={layout} count={6} />;
@@ -132,169 +121,16 @@ interface ArticleCardProps {
 }
 
 function ArticleCard({ article, layout, isSelected, onClick }: ArticleCardProps) {
-  const { formatRelativeTime } = useTimeFormat();
-  const baseClasses = cn(
-    'cursor-pointer transition-all duration-200',
-    article.isRead && 'opacity-60',
-    isSelected && 'ring-2 ring-accent-500'
-  );
-
-  if (layout === 'compact') {
-    return (
-      <div
-        className={cn(
-          'px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors',
-          isSelected && 'bg-accent-500/10',
-          article.isRead && 'opacity-60'
-        )}
-        onClick={onClick}
-      >
-        <div className="flex items-center gap-3">
-          {/* Unread indicator */}
-          {!article.isRead && (
-            <span className="w-2 h-2 rounded-full bg-accent-500 flex-shrink-0" />
-          )}
-          {article.isRead && <span className="w-2 flex-shrink-0" />}
-
-          {/* Feed icon */}
-          {article.feed.iconUrl ? (
-            <img
-              src={article.feed.iconUrl}
-              alt=""
-              className="w-4 h-4 rounded flex-shrink-0"
-            />
-          ) : (
-            <Rss className="w-4 h-4 text-gray-400 flex-shrink-0" />
-          )}
-
-          {/* Title */}
-          <h3 className="flex-1 text-sm font-medium truncate">{article.title}</h3>
-
-          {/* Time */}
-          <span className="text-xs text-gray-400 flex-shrink-0 whitespace-nowrap">
-            {formatRelativeTime(article.publishedAt)}
-          </span>
-        </div>
-      </div>
-    );
+  switch (layout) {
+    case 'compact':
+      return <CompactArticleRow article={article} isSelected={isSelected} onClick={onClick} />;
+    case 'list':
+      return <ListArticleCard article={article} isSelected={isSelected} onClick={onClick} />;
+    case 'cards':
+      return <GridArticleCard article={article} isSelected={isSelected} onClick={onClick} />;
+    case 'magazine':
+      return <MagazineArticleCard article={article} isSelected={isSelected} onClick={onClick} />;
+    default:
+      return <ListArticleCard article={article} isSelected={isSelected} onClick={onClick} />;
   }
-
-  if (layout === 'list') {
-    return (
-      <Card hover className={baseClasses} onClick={onClick}>
-        <CardContent className="p-4 flex items-start gap-4">
-          {article.imageUrl && (
-            <img
-              src={article.imageUrl}
-              alt=""
-              className="w-20 h-20 object-cover rounded-lg flex-shrink-0"
-              loading="lazy"
-            />
-          )}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              {article.feed.iconUrl ? (
-                <img
-                  src={article.feed.iconUrl}
-                  alt=""
-                  className="w-4 h-4 rounded"
-                />
-              ) : (
-                <Rss className="w-4 h-4 text-gray-400" />
-              )}
-              <span className="text-xs text-gray-500 truncate">
-                {article.feed.title}
-              </span>
-              <span className="text-xs text-gray-400 whitespace-nowrap">
-                {formatRelativeTime(article.publishedAt)}
-              </span>
-            </div>
-            <h3 className="font-semibold line-clamp-2 mb-1">{article.title}</h3>
-            {article.summary && (
-              <p className="text-sm text-gray-500 line-clamp-2">
-                {article.summary}
-              </p>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (layout === 'cards') {
-    return (
-      <Card hover className={baseClasses} onClick={onClick}>
-        {article.imageUrl && (
-          <img
-            src={article.imageUrl}
-            alt=""
-            className="w-full h-40 object-cover rounded-t-xl"
-            loading="lazy"
-          />
-        )}
-        <CardContent className="p-4">
-          <div className="flex items-center gap-2 mb-2">
-            {article.feed.iconUrl ? (
-              <img
-                src={article.feed.iconUrl}
-                alt=""
-                className="w-4 h-4 rounded"
-              />
-            ) : (
-              <Rss className="w-4 h-4 text-gray-400" />
-            )}
-            <span className="text-xs text-gray-500">{article.feed.title}</span>
-          </div>
-          <h3 className="font-semibold line-clamp-2 mb-2">{article.title}</h3>
-          {article.summary && (
-            <p className="text-sm text-gray-500 line-clamp-3">
-              {article.summary}
-            </p>
-          )}
-          <p className="text-xs text-gray-400 mt-2 whitespace-nowrap">
-            {formatRelativeTime(article.publishedAt)}
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  // Magazine layout
-  return (
-    <Card hover className={baseClasses} onClick={onClick}>
-      <CardContent className="p-0 flex flex-col">
-        {article.imageUrl && (
-          <img
-            src={article.imageUrl}
-            alt=""
-            className="w-full h-36 object-cover rounded-l-xl"
-            loading="lazy"
-          />
-        )}
-        <div className="flex-1 p-6">
-          <div className="flex items-center gap-2 mb-2">
-            {article.feed.iconUrl ? (
-              <img
-                src={article.feed.iconUrl}
-                alt=""
-                className="w-4 h-4 rounded"
-              />
-            ) : (
-              <Rss className="w-4 h-4 text-gray-400" />
-            )}
-            <span className="text-xs text-gray-500">{article.feed.title}</span>
-            <span className="text-xs text-gray-400 whitespace-nowrap">
-              {formatRelativeTime(article.publishedAt)}
-            </span>
-          </div>
-          <h3 className="text-xl font-semibold line-clamp-2 mb-3">
-            {article.title}
-          </h3>
-          {article.summary && (
-            <p className="text-gray-500 line-clamp-3">{article.summary}</p>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  );
 }

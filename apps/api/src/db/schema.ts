@@ -47,6 +47,7 @@ export const userPreferences = pgTable('user_preferences', {
   layout: varchar('layout', { length: 20 }).default('list').notNull(),
   articleView: varchar('article_view', { length: 20 }).default('split-vertical').notNull(),
   fontSize: varchar('font_size', { length: 20 }).default('medium').notNull(),
+  articleWidth: varchar('article_width', { length: 20 }).default('wide').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });

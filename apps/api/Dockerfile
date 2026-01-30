@@ -11,8 +11,9 @@ COPY pnpm-lock.yaml pnpm-workspace.yaml package.json turbo.json tsconfig.json ./
 COPY packages ./packages
 COPY apps/api ./apps/api
 
-# Install dependencies
-RUN pnpm install --frozen-lockfile
+# Install dependencies (with cache mount for pnpm store)
+RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile
 
 # Build packages and API
 RUN pnpm turbo run build --filter=@arss/api...
@@ -43,17 +44,14 @@ COPY --from=builder /app/apps/api/package.json ./apps/api/
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
 COPY --from=builder /app/apps/api/src/db/migrations ./apps/api/src/db/migrations
 
-# Install production dependencies only
-RUN pnpm install --frozen-lockfile --prod
+# Install production dependencies only (with cache mount for pnpm store)
+RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile --prod
 
 # Switch to non-root user
 USER arss
 
-# Set environment
-ENV NODE_ENV=production
-ENV PORT=3000
-
-EXPOSE 3000
+EXPOSE 5058
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \

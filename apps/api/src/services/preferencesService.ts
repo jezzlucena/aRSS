@@ -8,6 +8,7 @@ export interface UpdatePreferencesInput {
   layout?: 'list' | 'cards' | 'magazine';
   articleView?: 'split' | 'overlay' | 'full';
   fontSize?: 'small' | 'medium' | 'large';
+  articleWidth?: 'narrow' | 'wide' | 'full';
 }
 
 export async function getPreferences(userId: string) {

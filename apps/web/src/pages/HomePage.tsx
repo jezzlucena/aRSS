@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Rss, Plus, ArrowDown, ArrowUp, CheckCheck } from 'lucide-react';
+import { Rss, Plus, ClockArrowDown, ClockArrowUp, CheckCheck } from 'lucide-react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Button } from '@/components/ui';
 import { ArticleList, ArticleView } from '@/components/articles';
@@ -204,9 +204,9 @@ export function HomePage() {
                     className="gap-2 text-muted-foreground hover:text-foreground"
                   >
                     {sortOrder === 'newest' ? (
-                      <ArrowDown className="w-4 h-4" />
+                      <ClockArrowUp className="w-4 h-4" />
                     ) : (
-                      <ArrowUp className="w-4 h-4" />
+                      <ClockArrowDown className="w-4 h-4" />
                     )}
                     {sortOrder === 'newest' ? tArticles('sort.newestFirst') : tArticles('sort.oldestFirst')}
                   </Button>
@@ -216,6 +216,7 @@ export function HomePage() {
                         variant="ghost"
                         size="icon-sm"
                         className="text-muted-foreground hover:text-foreground"
+                        title={tArticles('markAllAsRead.title')}
                       >
                         <CheckCheck className="w-4 h-4" />
                       </Button>
@@ -226,6 +227,12 @@ export function HomePage() {
                         sideOffset={5}
                         align="end"
                       >
+                        <DropdownMenu.Item
+                          className="flex items-center gap-2 px-3 py-2 text-sm rounded-md cursor-pointer outline-none pointer-events-none"
+                        >
+                          {tArticles('markAllAsRead.title')}
+                        </DropdownMenu.Item>
+                        <hr className="my-1" />
                         <DropdownMenu.Item
                           className="flex items-center gap-2 px-3 py-2 text-sm rounded-md cursor-pointer outline-none hover:bg-gray-100 dark:hover:bg-gray-800"
                           onSelect={handleMarkAllAsRead}
@@ -304,9 +311,9 @@ export function HomePage() {
                     className="gap-2 text-muted-foreground hover:text-foreground"
                   >
                     {sortOrder === 'newest' ? (
-                      <ArrowDown className="w-4 h-4" />
+                      <ClockArrowUp className="w-4 h-4" />
                     ) : (
-                      <ArrowUp className="w-4 h-4" />
+                      <ClockArrowDown className="w-4 h-4" />
                     )}
                     {sortOrder === 'newest' ? tArticles('sort.newestFirst') : tArticles('sort.oldestFirst')}
                   </Button>
@@ -316,6 +323,7 @@ export function HomePage() {
                         variant="ghost"
                         size="icon-sm"
                         className="text-muted-foreground hover:text-foreground"
+                        title={tArticles('markAllAsRead.title')}
                       >
                         <CheckCheck className="w-4 h-4" />
                       </Button>
@@ -326,6 +334,12 @@ export function HomePage() {
                         sideOffset={5}
                         align="end"
                       >
+                        <DropdownMenu.Item
+                          className="flex items-center gap-2 px-3 py-2 text-sm rounded-md cursor-pointer outline-none pointer-events-none"
+                        >
+                          {tArticles('markAllAsRead.title')}
+                        </DropdownMenu.Item>
+                        <hr className="my-1" />
                         <DropdownMenu.Item
                           className="flex items-center gap-2 px-3 py-2 text-sm rounded-md cursor-pointer outline-none hover:bg-gray-100 dark:hover:bg-gray-800"
                           onSelect={handleMarkAllAsRead}
@@ -416,9 +430,9 @@ export function HomePage() {
                 className="gap-2 text-muted-foreground hover:text-foreground"
               >
                 {sortOrder === 'newest' ? (
-                  <ArrowDown className="w-4 h-4" />
+                  <ClockArrowUp className="w-4 h-4" />
                 ) : (
-                  <ArrowUp className="w-4 h-4" />
+                  <ClockArrowDown className="w-4 h-4" />
                 )}
                 {sortOrder === 'newest' ? tArticles('sort.newestFirst') : tArticles('sort.oldestFirst')}
               </Button>
@@ -428,6 +442,7 @@ export function HomePage() {
                     variant="ghost"
                     size="icon-sm"
                     className="text-muted-foreground hover:text-foreground"
+                    title={tArticles('markAllAsRead.title')}
                   >
                     <CheckCheck className="w-4 h-4" />
                   </Button>
@@ -438,6 +453,12 @@ export function HomePage() {
                     sideOffset={5}
                     align="end"
                   >
+                    <DropdownMenu.Item
+                      className="flex items-center gap-2 px-3 py-2 text-sm rounded-md cursor-pointer outline-none hover:bg-gray-100 dark:hover:bg-gray-800"
+                    >
+                      {tArticles('markAllAsRead.title')}
+                    </DropdownMenu.Item>
+                    <hr className="my-1" />
                     <DropdownMenu.Item
                       className="flex items-center gap-2 px-3 py-2 text-sm rounded-md cursor-pointer outline-none hover:bg-gray-100 dark:hover:bg-gray-800"
                       onSelect={handleMarkAllAsRead}

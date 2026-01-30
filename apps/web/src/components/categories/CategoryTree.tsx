@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   FolderOpen,
   FolderClosed,
   ChevronRight,
-  MoreHorizontal,
+  MoreVertical,
   Edit,
   Trash2,
   Plus,
@@ -30,6 +31,7 @@ function CategoryItem({ category, level, onEdit, unreadCounts }: CategoryItemPro
   const [isExpanded, setIsExpanded] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
+  const queryClient = useQueryClient();
   const deleteCategory = useDeleteCategory();
 
   const hasChildren = category.children && category.children.length > 0;
@@ -45,20 +47,20 @@ function CategoryItem({ category, level, onEdit, unreadCounts }: CategoryItemPro
     <div>
       <div
         className={cn(
-          'group flex items-center gap-1 px-2 py-1.5 rounded-lg cursor-pointer transition-all',
+          'relative group flex items-center gap-1 px-3 py-1.5 rounded-lg cursor-pointer transition-all',
           'hover:bg-white/50 dark:hover:bg-gray-800/50',
           isSelected && 'bg-accent-500/10 text-accent-600 dark:text-accent-400'
         )}
         style={{ paddingLeft: `${8 + level * 16}px` }}
       >
         {/* Expand/Collapse */}
-        {hasChildren ? (
+        {hasChildren && (
           <button
             onClick={(e) => {
               e.stopPropagation();
               setIsExpanded(!isExpanded);
             }}
-            className="p-0.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+            className="absolute left-1 p-0.5 rounded group-hover:bg-gray-200 dark:group-hover:bg-gray-700"
           >
             <ChevronRight
               className={cn(
@@ -67,19 +69,20 @@ function CategoryItem({ category, level, onEdit, unreadCounts }: CategoryItemPro
               )}
             />
           </button>
-        ) : (
-          <span className="w-5" />
         )}
 
         {/* Icon & Name */}
         <button
-          onClick={() => navigate(`/category/${category.id}`)}
-          className="flex-1 flex items-center gap-2 min-w-0"
+          onClick={() => {
+            queryClient.invalidateQueries({ queryKey: ['articles'] });
+            navigate(`/category/${category.id}`);
+          }}
+          className="flex-1 flex items-center gap-2 min-w-0 px-1.5 py-1"
         >
           {isExpanded && hasChildren ? (
-            <FolderOpen className="w-4 h-4" style={{ color: category.color }} />
+            <FolderOpen className="w-5 h-5 group-hover:opacity-0" style={{ color: category.color }} />
           ) : (
-            <FolderClosed className="w-4 h-4" style={{ color: category.color }} />
+            <FolderClosed className="w-5 h-5 group-hover:opacity-0" style={{ color: category.color }} />
           )}
           <span className="text-sm font-medium truncate">{category.name}</span>
         </button>
@@ -87,7 +90,7 @@ function CategoryItem({ category, level, onEdit, unreadCounts }: CategoryItemPro
         {/* Unread count badge */}
         {unreadCounts[category.id] > 0 && (
           <span className="flex-shrink-0 px-1.5 py-0.5 text-xs font-medium bg-accent-500/20 text-accent-600 dark:text-accent-400 rounded-full">
-            {unreadCounts[category.id] > 99 ? '99+' : unreadCounts[category.id]}
+            {unreadCounts[category.id] > 999 ? '999+' : unreadCounts[category.id]}
           </span>
         )}
 
@@ -97,10 +100,11 @@ function CategoryItem({ category, level, onEdit, unreadCounts }: CategoryItemPro
             <Button
               variant="ghost"
               size="icon-sm"
-              className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+              className="absolute top-2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
               onClick={(e) => e.stopPropagation()}
+              style={{ left: `${12 + level * 16}px` }}
             >
-              <MoreHorizontal className="w-3.5 h-3.5" />
+              <MoreVertical className="w-4 h-4" />
             </Button>
           </DropdownMenu.Trigger>
 

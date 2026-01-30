@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import { eq, and, gt } from 'drizzle-orm';
+import { eq, and, gt, inArray } from 'drizzle-orm';
 import { db, users, refreshTokens, userPreferences, NewUser } from '../db/index.js';
 import { AppError } from '../middleware/errorHandler.js';
 import {
@@ -190,6 +190,11 @@ export interface ChangePasswordInput {
   newPassword: string;
 }
 
+export interface UpdateProfileInput {
+  name?: string;
+  email?: string;
+}
+
 export async function changePassword(userId: string, input: ChangePasswordInput) {
   const { currentPassword, newPassword } = input;
 
@@ -224,6 +229,58 @@ export async function changePassword(userId: string, input: ChangePasswordInput)
   return { success: true };
 }
 
+export async function updateProfile(userId: string, input: UpdateProfileInput) {
+  const { name, email } = input;
+
+  // Find current user
+  const user = await db.query.users.findFirst({
+    where: eq(users.id, userId),
+  });
+
+  if (!user) {
+    throw new AppError(404, 'User not found');
+  }
+
+  // If email is being changed, check if it's already in use
+  if (email && email.toLowerCase() !== user.email) {
+    const existingUser = await db.query.users.findFirst({
+      where: eq(users.email, email.toLowerCase()),
+    });
+
+    if (existingUser) {
+      throw new AppError(409, 'Email is already in use');
+    }
+  }
+
+  // Build update object
+  const updateData: { name?: string; email?: string; updatedAt: Date } = {
+    updatedAt: new Date(),
+  };
+
+  if (name !== undefined) {
+    updateData.name = name;
+  }
+
+  if (email !== undefined) {
+    updateData.email = email.toLowerCase();
+  }
+
+  // Update user
+  const [updatedUser] = await db
+    .update(users)
+    .set(updateData)
+    .where(eq(users.id, userId))
+    .returning({
+      id: users.id,
+      email: users.email,
+      name: users.name,
+      createdAt: users.createdAt,
+      updatedAt: users.updatedAt,
+    });
+
+  return updatedUser;
+}
+
 async function storeRefreshToken(userId: string, token: string) {
   // Calculate expiration (7 days from now)
   const expiresAt = new Date();
@@ -242,9 +299,7 @@ async function storeRefreshToken(userId: string, token: string) {
   });
 
   if (userTokens.length > 5) {
-    const tokensToDelete = userTokens.slice(5);
-    for (const t of tokensToDelete) {
-      await db.delete(refreshTokens).where(eq(refreshTokens.id, t.id));
-    }
+    const tokenIdsToDelete = userTokens.slice(5).map((t) => t.id);
+    await db.delete(refreshTokens).where(inArray(refreshTokens.id, tokenIdsToDelete));
   }
 }

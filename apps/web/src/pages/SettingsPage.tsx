@@ -26,9 +26,13 @@ import {
   Rss,
   ExternalLink,
   Globe,
+  MoveHorizontal,
+  User,
+  Mail,
 } from 'lucide-react';
 import { Button, Input } from '@/components/ui';
 import { useUIStore } from '@/stores/uiStore';
+import { useAuthStore } from '@/stores/authStore';
 import { useUpdatePreferences } from '@/hooks';
 import { presetColors, isValidHex, getContrastColor } from '@/lib/colors';
 import { cn } from '@/lib/utils';
@@ -42,6 +46,7 @@ type Theme = 'light' | 'dark' | 'system';
 type Layout = 'compact' | 'list' | 'cards' | 'magazine';
 type ArticleView = 'split-horizontal' | 'split-vertical' | 'overlay' | 'full';
 type FontSize = 'small' | 'medium' | 'large';
+type ArticleWidth = 'narrow' | 'wide' | 'full';
 
 interface SettingsSectionProps {
   title: string;
@@ -108,10 +113,17 @@ export function SettingsPage() {
     setAccentColor,
     fontSize,
     setFontSize,
+    articleWidth,
+    setArticleWidth,
   } = useUIStore();
 
   const updatePreferences = useUpdatePreferences();
   const [customColor, setCustomColor] = useState(accentColor);
+
+  // Profile state
+  const { user, setUser } = useAuthStore();
+  const [profileName, setProfileName] = useState(user?.name || '');
+  const [profileEmail, setProfileEmail] = useState(user?.email || '');
 
   // Password change state
   const [currentPassword, setCurrentPassword] = useState('');
@@ -137,6 +149,42 @@ export function SettingsPage() {
       toast.error(message);
     },
   });
+
+  const updateProfileMutation = useMutation({
+    mutationFn: async (data: { name?: string; email?: string }) => {
+      const response = await api.patch('/auth/profile', data);
+      return response.data;
+    },
+    onSuccess: (data) => {
+      setUser(data.data);
+      toast.success(t('profile.saved'));
+    },
+    onError: (error: any) => {
+      const message = error.response?.data?.error || t('profile.saveFailed');
+      if (error.response?.status === 409) {
+        toast.error(t('profile.emailInUse'));
+      } else {
+        toast.error(message);
+      }
+    },
+  });
+
+  const handleUpdateProfile = () => {
+    const updates: { name?: string; email?: string } = {};
+
+    if (profileName !== user?.name) {
+      updates.name = profileName;
+    }
+    if (profileEmail !== user?.email) {
+      updates.email = profileEmail;
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return;
+    }
+
+    updateProfileMutation.mutate(updates);
+  };
 
   const handleChangePassword = () => {
     if (!currentPassword || !newPassword || !confirmPassword) {
@@ -178,6 +226,11 @@ export function SettingsPage() {
   const handleFontSizeChange = (size: FontSize) => {
     setFontSize(size);
     updatePreferences.mutate({ fontSize: size });
+  };
+
+  const handleArticleWidthChange = (width: ArticleWidth) => {
+    setArticleWidth(width);
+    updatePreferences.mutate({ articleWidth: width });
   };
 
   const handleCustomColorInput = (value: string) => {
@@ -307,6 +360,60 @@ export function SettingsPage() {
         </div>
       </SettingsSection>
 
+      {/* Profile Section */}
+      <SettingsSection
+        title={t('profile.title')}
+        description={t('profile.description')}
+      >
+        <div className="space-y-4 max-w-md">
+          <div>
+            <label className="flex items-center gap-2 text-sm font-medium mb-2">
+              <User className="w-4 h-4" />
+              {t('profile.name')}
+            </label>
+            <Input
+              type="text"
+              value={profileName}
+              onChange={(e) => setProfileName(e.target.value)}
+              placeholder={t('profile.namePlaceholder')}
+            />
+          </div>
+
+          <div>
+            <label className="flex items-center gap-2 text-sm font-medium mb-2">
+              <Mail className="w-4 h-4" />
+              {t('profile.email')}
+            </label>
+            <Input
+              type="email"
+              value={profileEmail}
+              onChange={(e) => setProfileEmail(e.target.value)}
+              placeholder={t('profile.emailPlaceholder')}
+            />
+          </div>
+
+          <Button
+            onClick={handleUpdateProfile}
+            disabled={
+              updateProfileMutation.isPending ||
+              (profileName === user?.name && profileEmail === user?.email) ||
+              !profileName ||
+              !profileEmail
+            }
+            className="w-full sm:w-auto"
+          >
+            {updateProfileMutation.isPending ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                {t('profile.saving')}
+              </>
+            ) : (
+              t('profile.saveChanges')
+            )}
+          </Button>
+        </div>
+      </SettingsSection>
+
       {/* Layout Section */}
       <SettingsSection
         title={t('feedLayout.title')}
@@ -420,6 +527,65 @@ export function SettingsPage() {
               >
                 <span className="text-lg">Aa</span>
                 <span className="block text-sm mt-1">{t('reading.large')}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </SettingsSection>
+
+      {/* Article Width Section */}
+      <SettingsSection
+        title={t('articleWidth.title')}
+        description={t('articleWidth.description')}
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="flex items-center gap-2 text-sm font-medium mb-3">
+              <MoveHorizontal className="w-4 h-4" />
+              {t('articleWidth.title')}
+            </label>
+            <div className="grid grid-cols-3 gap-4">
+              <button
+                onClick={() => handleArticleWidthChange('narrow')}
+                className={cn(
+                  'py-3 px-4 rounded-lg border-2 transition-all',
+                  articleWidth === 'narrow'
+                    ? 'border-accent-500 bg-accent-500/10'
+                    : 'border-border/50 hover:border-border'
+                )}
+              >
+                <div className="flex justify-center mb-2">
+                  <div className="w-6 h-8 border-2 border-current rounded" />
+                </div>
+                <span className="block text-sm">{t('articleWidth.narrow')}</span>
+              </button>
+              <button
+                onClick={() => handleArticleWidthChange('wide')}
+                className={cn(
+                  'py-3 px-4 rounded-lg border-2 transition-all',
+                  articleWidth === 'wide'
+                    ? 'border-accent-500 bg-accent-500/10'
+                    : 'border-border/50 hover:border-border'
+                )}
+              >
+                <div className="flex justify-center mb-2">
+                  <div className="w-10 h-8 border-2 border-current rounded" />
+                </div>
+                <span className="block text-sm">{t('articleWidth.wide')}</span>
+              </button>
+              <button
+                onClick={() => handleArticleWidthChange('full')}
+                className={cn(
+                  'py-3 px-4 rounded-lg border-2 transition-all',
+                  articleWidth === 'full'
+                    ? 'border-accent-500 bg-accent-500/10'
+                    : 'border-border/50 hover:border-border'
+                )}
+              >
+                <div className="flex justify-center mb-2">
+                  <div className="w-14 h-8 border-2 border-current rounded" />
+                </div>
+                <span className="block text-sm">{t('articleWidth.full')}</span>
               </button>
             </div>
           </div>

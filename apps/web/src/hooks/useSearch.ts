@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import api from '@/lib/api';
+import { queryKeys } from '@/lib/queryKeys';
 import type { ArticleWithState } from '@arss/types';
 
 interface SearchSuggestion {
@@ -89,7 +90,7 @@ export function useSearchSuggestions(initialValue: string = '') {
   }, []);
 
   const { data: suggestions = [], isLoading } = useQuery({
-    queryKey: ['search-suggestions', debouncedQuery],
+    queryKey: queryKeys.searchSuggestions(debouncedQuery),
     queryFn: () => fetchSuggestions(debouncedQuery),
     enabled: debouncedQuery.length >= 2,
     staleTime: 30000,

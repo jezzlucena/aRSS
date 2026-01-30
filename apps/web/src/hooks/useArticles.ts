@@ -1,16 +1,46 @@
 import { useEffect } from 'react';
-import { useMutation, useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useInfiniteQuery, useQuery, useQueryClient, QueryClient } from '@tanstack/react-query';
 import i18n from '@/i18n';
 import api from '@/lib/api';
+import { queryKeys } from '@/lib/queryKeys';
 import { useArticleStore } from '@/stores/articleStore';
 import { toast } from '@/stores/toastStore';
 import type { ArticleWithState, ArticleListParams, PaginatedResponse } from '@arss/types';
+
+/**
+ * Find an article in the React Query cache across all article queries.
+ * Searches both the articles list cache and individual article cache.
+ */
+function findArticleInCache(
+  queryClient: QueryClient,
+  articleId: string
+): ArticleWithState | undefined {
+  // First check single article cache (most reliable for ArticleView)
+  const singleArticle = queryClient.getQueryData<ArticleWithState>(queryKeys.article(articleId));
+  if (singleArticle) return singleArticle;
+
+  // Then check articles list cache
+  const articlesData = queryClient.getQueriesData<{
+    pages: { articles: ArticleWithState[]; pagination: unknown }[];
+  }>({ queryKey: ['articles'] });
+
+  for (const [, data] of articlesData) {
+    if (data) {
+      for (const page of data.pages) {
+        const found = page.articles.find((a) => a.id === articleId);
+        if (found) return found;
+      }
+    }
+  }
+
+  return undefined;
+}
 
 export function useArticles(params: ArticleListParams = {}) {
   const { setArticles, setHasMore } = useArticleStore();
 
   const query = useInfiniteQuery({
-    queryKey: ['articles', params],
+    queryKey: queryKeys.articles(params),
     queryFn: async ({ pageParam = 1 }) => {
       const searchParams = new URLSearchParams();
       searchParams.set('page', String(pageParam));
@@ -52,7 +82,7 @@ export function useArticles(params: ArticleListParams = {}) {
 
 export function useArticle(articleId: string | null) {
   return useQuery({
-    queryKey: ['article', articleId],
+    queryKey: queryKeys.article(articleId || ''),
     queryFn: async () => {
       const response = await api.get<{ success: boolean; data: ArticleWithState }>(`/articles/${articleId}`);
       return response.data.data;
@@ -75,21 +105,8 @@ export function useMarkAsRead() {
     onMutate: (articleId) => {
       markAsRead(articleId);
 
-      // Find the article from the articles list cache to use for the single article cache
-      let articleFromList: ArticleWithState | undefined;
-      const articlesData = queryClient.getQueriesData<{ pages: { articles: ArticleWithState[]; pagination: unknown }[] }>({ queryKey: ['articles'] });
-      for (const [, data] of articlesData) {
-        if (data) {
-          for (const page of data.pages) {
-            const found = page.articles.find(a => a.id === articleId);
-            if (found) {
-              articleFromList = found;
-              break;
-            }
-          }
-          if (articleFromList) break;
-        }
-      }
+      // Find the article from cache
+      const articleFromCache = findArticleInCache(queryClient, articleId);
 
       // Optimistically update the article in all cached queries without refetching
       // This keeps the article visible in the unread view but marked as read
@@ -109,24 +126,24 @@ export function useMarkAsRead() {
         }
       );
 
-      // Update the single article query - use article from list if the cache is empty
-      const existingArticle = queryClient.getQueryData<ArticleWithState>(['article', articleId]);
-      if (existingArticle) {
-        queryClient.setQueryData<ArticleWithState>(['article', articleId], { ...existingArticle, isRead: true });
-      } else if (articleFromList) {
-        queryClient.setQueryData<ArticleWithState>(['article', articleId], { ...articleFromList, isRead: true });
+      // Update the single article query
+      if (articleFromCache) {
+        queryClient.setQueryData<ArticleWithState>(
+          queryKeys.article(articleId),
+          { ...articleFromCache, isRead: true }
+        );
       }
     },
     onSuccess: () => {
       // Update unread counts after marking as read
-      queryClient.invalidateQueries({ queryKey: ['unread-count'] });
-      queryClient.invalidateQueries({ queryKey: ['unread-counts-by-category'] });
-      queryClient.invalidateQueries({ queryKey: ['unread-counts-by-feed'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.unreadCount() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.unreadCountsByCategory() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.unreadCountsByFeed() });
     },
     onError: (_error, articleId) => {
       // Revert the optimistic update on error
       queryClient.invalidateQueries({ queryKey: ['articles'] });
-      queryClient.invalidateQueries({ queryKey: ['article', articleId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.article(articleId) });
       toast.error(i18n.t('articles:messages.markReadFailed'));
     },
   });
@@ -144,21 +161,8 @@ export function useMarkAsUnread() {
     onMutate: (articleId) => {
       markAsUnread(articleId);
 
-      // Find the article from the articles list cache to use for the single article cache
-      let articleFromList: ArticleWithState | undefined;
-      const articlesData = queryClient.getQueriesData<{ pages: { articles: ArticleWithState[]; pagination: unknown }[] }>({ queryKey: ['articles'] });
-      for (const [, data] of articlesData) {
-        if (data) {
-          for (const page of data.pages) {
-            const found = page.articles.find(a => a.id === articleId);
-            if (found) {
-              articleFromList = found;
-              break;
-            }
-          }
-          if (articleFromList) break;
-        }
-      }
+      // Find the article from cache
+      const articleFromCache = findArticleInCache(queryClient, articleId);
 
       // Optimistically update the article in all cached queries without refetching
       queryClient.setQueriesData<{ pages: { articles: ArticleWithState[]; pagination: unknown }[] }>(
@@ -177,24 +181,24 @@ export function useMarkAsUnread() {
         }
       );
 
-      // Update the single article query - use article from list if the cache is empty
-      const existingArticle = queryClient.getQueryData<ArticleWithState>(['article', articleId]);
-      if (existingArticle) {
-        queryClient.setQueryData<ArticleWithState>(['article', articleId], { ...existingArticle, isRead: false });
-      } else if (articleFromList) {
-        queryClient.setQueryData<ArticleWithState>(['article', articleId], { ...articleFromList, isRead: false });
+      // Update the single article query
+      if (articleFromCache) {
+        queryClient.setQueryData<ArticleWithState>(
+          queryKeys.article(articleId),
+          { ...articleFromCache, isRead: false }
+        );
       }
     },
     onSuccess: () => {
       // Update unread counts after marking as unread
-      queryClient.invalidateQueries({ queryKey: ['unread-count'] });
-      queryClient.invalidateQueries({ queryKey: ['unread-counts-by-category'] });
-      queryClient.invalidateQueries({ queryKey: ['unread-counts-by-feed'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.unreadCount() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.unreadCountsByCategory() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.unreadCountsByFeed() });
     },
     onError: (_error, articleId) => {
       // Revert the optimistic update on error
       queryClient.invalidateQueries({ queryKey: ['articles'] });
-      queryClient.invalidateQueries({ queryKey: ['article', articleId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.article(articleId) });
       toast.error(i18n.t('articles:messages.markUnreadFailed'));
     },
   });
@@ -206,20 +210,9 @@ export function useToggleSaved() {
 
   // Helper to find article from all available sources
   const findArticle = (articleId: string): ArticleWithState | undefined => {
-    // First check single article cache (most reliable for ArticleView)
-    const singleArticle = queryClient.getQueryData<ArticleWithState>(['article', articleId]);
-    if (singleArticle) return singleArticle;
-
-    // Then check articles list cache
-    const articlesData = queryClient.getQueriesData<{ pages: { articles: ArticleWithState[]; pagination: unknown }[] }>({ queryKey: ['articles'] });
-    for (const [, data] of articlesData) {
-      if (data) {
-        for (const page of data.pages) {
-          const found = page.articles.find(a => a.id === articleId);
-          if (found) return found;
-        }
-      }
-    }
+    // Check cache first
+    const cached = findArticleInCache(queryClient, articleId);
+    if (cached) return cached;
 
     // Finally check Zustand store
     return articles.find((a) => a.id === articleId);
@@ -306,12 +299,12 @@ export function useToggleSaved() {
         }
       }
 
-      // Update the single article query - use article from list if the cache is empty
-      const existingArticle = queryClient.getQueryData<ArticleWithState>(['article', articleId]);
-      if (existingArticle) {
-        queryClient.setQueryData<ArticleWithState>(['article', articleId], { ...existingArticle, isSaved: newSavedState });
-      } else if (articleFromList) {
-        queryClient.setQueryData<ArticleWithState>(['article', articleId], { ...articleFromList, isSaved: newSavedState });
+      // Update the single article query
+      if (articleFromList) {
+        queryClient.setQueryData<ArticleWithState>(
+          queryKeys.article(articleId),
+          { ...articleFromList, isSaved: newSavedState }
+        );
       }
 
       return { newSavedState };
@@ -324,7 +317,7 @@ export function useToggleSaved() {
     onError: (_error, { articleId }) => {
       // Revert the optimistic update on error
       queryClient.invalidateQueries({ queryKey: ['articles'] });
-      queryClient.invalidateQueries({ queryKey: ['article', articleId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.article(articleId) });
       toast.error(i18n.t('articles:messages.saveFailed'));
     },
   });
@@ -355,16 +348,16 @@ export function useMarkBulkAsRead() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['articles'] });
-      queryClient.invalidateQueries({ queryKey: ['unread-count'] });
-      queryClient.invalidateQueries({ queryKey: ['unread-counts-by-category'] });
-      queryClient.invalidateQueries({ queryKey: ['unread-counts-by-feed'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.unreadCount() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.unreadCountsByCategory() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.unreadCountsByFeed() });
     },
   });
 }
 
-export function useSearch(query: string) {
+export function useSearchArticles(query: string) {
   return useQuery({
-    queryKey: ['search', query],
+    queryKey: queryKeys.search(query),
     queryFn: async () => {
       const response = await api.get<PaginatedResponse<ArticleWithState>>(`/search?q=${encodeURIComponent(query)}`);
       return {
@@ -378,7 +371,7 @@ export function useSearch(query: string) {
 
 export function useUnreadCount() {
   return useQuery({
-    queryKey: ['unread-count'],
+    queryKey: queryKeys.unreadCount(),
     queryFn: async () => {
       const response = await api.get<{ success: boolean; data: { count: number } }>('/articles/unread-count');
       return response.data.data.count;
@@ -390,7 +383,7 @@ export function useUnreadCount() {
 
 export function useUnreadCountsByCategory() {
   return useQuery({
-    queryKey: ['unread-counts-by-category'],
+    queryKey: queryKeys.unreadCountsByCategory(),
     queryFn: async () => {
       const response = await api.get<{ success: boolean; data: { counts: Record<string, number> } }>('/articles/unread-counts-by-category');
       return response.data.data.counts;
@@ -402,7 +395,7 @@ export function useUnreadCountsByCategory() {
 
 export function useUnreadCountsByFeed() {
   return useQuery({
-    queryKey: ['unread-counts-by-feed'],
+    queryKey: queryKeys.unreadCountsByFeed(),
     queryFn: async () => {
       const response = await api.get<{ success: boolean; data: { counts: Record<string, number> } }>('/articles/unread-counts-by-feed');
       return response.data.data.counts;

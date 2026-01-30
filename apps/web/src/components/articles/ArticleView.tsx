@@ -34,13 +34,40 @@ const fontSizeClasses = {
   large: 'prose-lg',
 };
 
+const articleWidthClasses = {
+  narrow: 'max-w-2xl',
+  wide: 'max-w-4xl',
+  full: 'max-w-none',
+};
+
+/**
+ * Check if HTML content contains an <img> element.
+ */
+function contentHasImage(html: string): boolean {
+  return /<img\s/i.test(html);
+}
+
+/**
+ * Inject an image at the top of the article content if:
+ * 1. The content doesn't already contain an <img> element
+ * 2. The article has an imageUrl
+ */
+function injectLeadImage(content: string, imageUrl: string | null): string {
+  if (!imageUrl || contentHasImage(content)) {
+    return content;
+  }
+
+  const leadImage = `<figure class="lead-image"><img src="${imageUrl}" alt="" loading="lazy" /></figure>`;
+  return leadImage + content;
+}
+
 export function ArticleView({ articleId, onClose, mode = 'split' }: ArticleViewProps) {
   const { t } = useTranslation('articles');
   const { data: article, isLoading } = useArticle(articleId);
   const markAsRead = useMarkAsRead();
   const markAsUnread = useMarkAsUnread();
   const toggleSaved = useToggleSaved();
-  const { fontSize, setFontSize, focusMode, toggleFocusMode } = useUIStore();
+  const { fontSize, setFontSize, articleWidth, focusMode, toggleFocusMode } = useUIStore();
   const { formatRelativeTime, formatReadingTime } = useTimeFormat();
 
   const fontSizeLabels = {
@@ -206,9 +233,11 @@ export function ArticleView({ articleId, onClose, mode = 'split' }: ArticleViewP
       </div>
 
       {/* Content */}
+      <div className="flex-1 overflow-y-auto">
       <div className={cn(
-        "flex-1 overflow-y-auto",
-        focusMode ? "px-8 py-12 max-w-3xl mx-auto" : "p-6"
+        "mx-auto",
+        focusMode ? "px-8 py-12" : "p-6",
+        articleWidthClasses[articleWidth]
       )}>
         {/* Meta */}
         <div className={cn(
@@ -246,7 +275,14 @@ export function ArticleView({ articleId, onClose, mode = 'split' }: ArticleViewP
           fontSize === 'small' && "text-2xl",
           fontSize === 'large' && "text-4xl"
         )}>
-          {article.title}
+          <a
+            href={article.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-accent-500 transition-colors"
+          >
+            {article.title}
+          </a>
         </h1>
 
         {/* Author & date */}
@@ -277,14 +313,16 @@ export function ArticleView({ articleId, onClose, mode = 'split' }: ArticleViewP
             "prose-headings:font-bold prose-headings:tracking-tight",
             "prose-p:indent-8 prose-p:mt-4 [&>p:first-of-type]:indent-0 [&>p:first-of-type]:mt-0",
             "prose-a:text-accent-500 prose-a:no-underline hover:prose-a:underline",
-            "prose-img:rounded-xl prose-img:shadow-lg",
+            "prose-img:rounded-xl prose-img:shadow-lg prose-img:max-w-[600px] prose-img:mx-auto",
             "prose-blockquote:border-l-accent-500 prose-blockquote:bg-gray-50 dark:prose-blockquote:bg-gray-800/50 prose-blockquote:py-1 prose-blockquote:px-4 prose-blockquote:rounded-r-lg",
             "prose-code:bg-gray-100 dark:prose-code:bg-gray-800 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none",
             "prose-pre:bg-gray-900 prose-pre:text-gray-100",
             "prose-hr:border-gray-200 dark:prose-hr:border-gray-700",
             focusMode && "prose-lg"
           )}
-          dangerouslySetInnerHTML={sanitizeForReact(article.content || article.summary || '')}
+          dangerouslySetInnerHTML={sanitizeForReact(
+            injectLeadImage(article.content || article.summary || '', article.imageUrl)
+          )}
         />
 
         {/* Footer */}
@@ -332,6 +370,7 @@ export function ArticleView({ articleId, onClose, mode = 'split' }: ArticleViewP
             </div>
           </div>
         )}
+      </div>
       </div>
     </motion.div>
   );

@@ -1,6 +1,9 @@
 import rateLimit from 'express-rate-limit';
 import { Request, Response, NextFunction } from 'express';
 import { env } from '../config/env.js';
+import { createLogger } from '../lib/logger.js';
+
+const requestLogger = createLogger('Request');
 
 /**
  * General API rate limiter
@@ -74,31 +77,27 @@ export const feedLimiter = rateLimit({
 /**
  * Request logging middleware
  */
-export function requestLogger(req: Request, res: Response, next: NextFunction) {
+export function requestLoggingMiddleware(req: Request, res: Response, next: NextFunction) {
   const start = Date.now();
 
   res.on('finish', () => {
     const duration = Date.now() - start;
-    const logLevel = res.statusCode >= 400 ? 'error' : 'info';
+    const isError = res.statusCode >= 400;
 
-    if (env.NODE_ENV === 'production') {
-      // JSON logging for production (easier to parse)
-      console.log(JSON.stringify({
-        timestamp: new Date().toISOString(),
-        level: logLevel,
-        method: req.method,
-        path: req.path,
-        statusCode: res.statusCode,
-        duration: `${duration}ms`,
-        ip: req.ip,
-        userAgent: req.get('user-agent'),
-        userId: (req as any).user?.userId || null,
-      }));
+    const logData = {
+      method: req.method,
+      path: req.path,
+      statusCode: res.statusCode,
+      duration: `${duration}ms`,
+      ip: req.ip,
+      userAgent: req.get('user-agent'),
+      userId: (req as any).user?.userId || null,
+    };
+
+    if (isError) {
+      requestLogger.warn('Request completed with error', logData);
     } else {
-      // Human-readable logging for development
-      console.log(
-        `[${new Date().toISOString()}] ${req.method} ${req.path} ${res.statusCode} ${duration}ms`
-      );
+      requestLogger.info('Request completed', logData);
     }
   });
 
@@ -154,6 +153,7 @@ export function sanitizeRequest(req: Request, _res: Response, next: NextFunction
  */
 export function getCorsOptions() {
   const allowedOrigins = env.CORS_ORIGIN.split(',').map((o) => o.trim());
+  console.log('allowedOrigins', allowedOrigins);
 
   return {
     origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
@@ -165,7 +165,7 @@ export function getCorsOptions() {
       if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
         callback(null, true);
       } else {
-        callback(new Error('Not allowed by CORS'));
+        callback(new Error('Not allowed by CORS: ' + origin));
       }
     },
     credentials: true,

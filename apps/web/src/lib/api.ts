@@ -1,5 +1,6 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { useAuthStore } from '@/stores/authStore';
+import type { ApiError } from '@arss/types';
 
 const api = axios.create({
   baseURL: '/api/v1',
@@ -52,12 +53,8 @@ api.interceptors.response.use(
 
 export default api;
 
-// API helper types
-export interface ApiError {
-  success: false;
-  error: string;
-  details?: { path: string; message: string }[];
-}
+// Re-export ApiError from shared types
+export type { ApiError } from '@arss/types';
 
 export function isApiError(error: unknown): error is AxiosError<ApiError> {
   return axios.isAxiosError(error);

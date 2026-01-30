@@ -6,6 +6,13 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+// Simple logger for migration script (doesn't use main logger due to module path issues)
+const log = {
+  info: (msg: string) => console.log(`[MIGRATE] ${msg}`),
+  warn: (msg: string) => console.warn(`[MIGRATE] ${msg}`),
+  error: (msg: string, err?: unknown) => console.error(`[MIGRATE] ${msg}`, err || ''),
+};
+
 const { Pool } = pg;
 
 const __filename = fileURLToPath(import.meta.url);
@@ -20,18 +27,18 @@ async function main() {
   const client = await pool.connect();
 
   try {
-    console.log('Running Drizzle migrations...');
+    log.info('Running Drizzle migrations...');
 
     // Run Drizzle migrations (if any exist)
     try {
       await migrate(db, { migrationsFolder: './src/db/migrations' });
     } catch (err) {
       // If no drizzle migrations, continue
-      console.log('No Drizzle migrations to run or already up to date');
+      log.info('No Drizzle migrations to run or already up to date');
     }
 
     // Run custom SQL migrations
-    console.log('Running custom SQL migrations...');
+    log.info('Running custom SQL migrations...');
 
     const migrationsDir = path.join(__dirname, 'migrations');
 
@@ -41,7 +48,7 @@ async function main() {
         .sort();
 
       for (const file of files) {
-        console.log(`Running migration: ${file}`);
+        log.info(`Running migration: ${file}`);
         const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
 
         // Split by semicolons for multiple statements, but handle PL/pgSQL blocks
@@ -57,14 +64,14 @@ async function main() {
               if (pgError.code !== '42710' && pgError.code !== '42P07') {
                 throw err;
               }
-              console.log(`  Skipping (already exists): ${pgError.message?.slice(0, 50)}...`);
+              log.info(`  Skipping (already exists): ${pgError.message?.slice(0, 50)}...`);
             }
           }
         }
       }
     }
 
-    console.log('All migrations completed!');
+    log.info('All migrations completed!');
   } finally {
     client.release();
     await pool.end();
@@ -109,6 +116,6 @@ function splitSqlStatements(sql: string): string[] {
 }
 
 main().catch((err) => {
-  console.error('Migration failed:', err);
+  log.error('Migration failed:', err);
   process.exit(1);
 });

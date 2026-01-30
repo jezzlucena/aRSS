@@ -6,9 +6,10 @@ import compression from 'compression';
 import swaggerUi from 'swagger-ui-express';
 import { env } from './config/env.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import { logger } from './lib/logger.js';
 import {
   generalLimiter,
-  requestLogger,
+  requestLoggingMiddleware,
   securityHeaders,
   sanitizeRequest,
   getCorsOptions,
@@ -27,7 +28,7 @@ const app = express();
 app.set('trust proxy', 1);
 
 // Request logging
-app.use(requestLogger);
+app.use(requestLoggingMiddleware);
 
 // Security middleware
 app.use(helmet({
@@ -89,9 +90,9 @@ app.use((_req, res) => {
 app.use(errorHandler);
 
 // Start server
-app.listen(env.PORT, () => {
-  console.log(`Server running on http://localhost:${env.PORT}`);
-  console.log(`Environment: ${env.NODE_ENV}`);
+app.listen(env.API_PORT, () => {
+  logger.info('Server started', { port: env.API_PORT, url: `http://localhost:${env.API_PORT}` });
+  logger.info('Environment', { nodeEnv: env.NODE_ENV });
 });
 
 export default app;

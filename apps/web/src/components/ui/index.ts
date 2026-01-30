@@ -1,6 +1,7 @@
 export { Button, buttonVariants, type ButtonProps } from './Button';
 export { Input, type InputProps } from './Input';
 export { Card, CardHeader, CardFooter, CardTitle, CardDescription, CardContent, type CardProps } from './Card';
+export { BaseModal } from './BaseModal';
 export { Spinner } from './Spinner';
 export {
   Skeleton,

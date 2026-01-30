@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { validate, validateParams } from '../middleware/validate.js';
 import { authenticate } from '../middleware/auth.js';
+import { getTypedParams } from '../lib/routeHelpers.js';
 import * as feedService from '../services/feedService.js';
 
 const router = Router();
@@ -68,7 +69,7 @@ router.post('/discover', validate(z.object({ url: z.string().min(1) })), async (
 // GET /api/v1/feeds/:id - Get feed details
 router.get('/:id', validateParams(feedIdSchema), async (req, res, next) => {
   try {
-    const { id } = req.params as unknown as FeedIdParams;
+    const { id } = getTypedParams<FeedIdParams>(req);
     const feed = await feedService.getFeed(id);
     res.json({
       success: true,
@@ -86,7 +87,7 @@ router.patch(
   validate(updateSubscriptionSchema),
   async (req, res, next) => {
     try {
-      const { id } = req.params as unknown as FeedIdParams;
+      const { id } = getTypedParams<FeedIdParams>(req);
       const subscription = await feedService.updateSubscription(
         req.user!.userId,
         id,
@@ -105,7 +106,7 @@ router.patch(
 // DELETE /api/v1/feeds/:id - Unsubscribe from feed
 router.delete('/:id', validateParams(feedIdSchema), async (req, res, next) => {
   try {
-    const { id } = req.params as unknown as FeedIdParams;
+    const { id } = getTypedParams<FeedIdParams>(req);
     await feedService.deleteFeed(req.user!.userId, id);
     res.json({
       success: true,
@@ -119,7 +120,7 @@ router.delete('/:id', validateParams(feedIdSchema), async (req, res, next) => {
 // POST /api/v1/feeds/:id/refresh - Refresh feed articles
 router.post('/:id/refresh', validateParams(feedIdSchema), async (req, res, next) => {
   try {
-    const { id } = req.params as unknown as FeedIdParams;
+    const { id } = getTypedParams<FeedIdParams>(req);
     const feed = await feedService.refreshFeed(id);
     res.json({
       success: true,

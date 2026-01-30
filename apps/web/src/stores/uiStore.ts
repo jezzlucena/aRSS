@@ -6,6 +6,7 @@ type Theme = 'light' | 'dark' | 'system';
 type Layout = 'compact' | 'list' | 'cards' | 'magazine';
 type ArticleView = 'split-horizontal' | 'split-vertical' | 'overlay' | 'full';
 type FontSize = 'small' | 'medium' | 'large';
+type ArticleWidth = 'narrow' | 'wide' | 'full';
 
 interface UIState {
   theme: Theme;
@@ -13,6 +14,7 @@ interface UIState {
   articleView: ArticleView;
   accentColor: string;
   fontSize: FontSize;
+  articleWidth: ArticleWidth;
   focusMode: boolean;
   sidebarOpen: boolean;
   sidebarCollapsed: boolean;
@@ -22,6 +24,7 @@ interface UIState {
   setArticleView: (view: ArticleView) => void;
   setAccentColor: (color: string) => void;
   setFontSize: (size: FontSize) => void;
+  setArticleWidth: (width: ArticleWidth) => void;
   toggleFocusMode: () => void;
   toggleSidebar: () => void;
   setSidebarOpen: (open: boolean) => void;
@@ -37,6 +40,7 @@ export const useUIStore = create<UIState>()(
       articleView: 'split-vertical',
       accentColor: '#3b82f6',
       fontSize: 'medium',
+      articleWidth: 'wide',
       focusMode: false,
       sidebarOpen: true,
       sidebarCollapsed: false,
@@ -60,6 +64,8 @@ export const useUIStore = create<UIState>()(
         set({ fontSize });
         applyFontSize(fontSize);
       },
+
+      setArticleWidth: (articleWidth) => set({ articleWidth }),
 
       toggleFocusMode: () => set((state) => ({ focusMode: !state.focusMode })),
 

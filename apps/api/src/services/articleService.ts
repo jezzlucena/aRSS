@@ -19,6 +19,53 @@ export interface ArticleListParams extends ArticleFilters {
   sortOrder?: 'asc' | 'desc';
 }
 
+/**
+ * Get feed IDs for a user based on optional feedId or categoryId filters.
+ * If feedId is provided, verifies subscription and returns that single feed.
+ * If categoryId is provided, returns all feeds in that category.
+ * Otherwise, returns all subscribed feeds for the user.
+ */
+async function getUserFeedIds(
+  userId: string,
+  feedId?: string,
+  categoryId?: string
+): Promise<string[]> {
+  if (feedId) {
+    // Verify user is subscribed to this feed
+    const subscription = await db.query.subscriptions.findFirst({
+      where: and(
+        eq(subscriptions.userId, userId),
+        eq(subscriptions.feedId, feedId)
+      ),
+    });
+
+    if (!subscription) {
+      throw new AppError(404, 'Feed not found');
+    }
+
+    return [feedId];
+  }
+
+  if (categoryId) {
+    // Get all feeds in category
+    const categorySubscriptions = await db.query.subscriptions.findMany({
+      where: and(
+        eq(subscriptions.userId, userId),
+        eq(subscriptions.categoryId, categoryId)
+      ),
+    });
+
+    return categorySubscriptions.map((s) => s.feedId);
+  }
+
+  // Get all subscribed feeds
+  const userSubscriptions = await db.query.subscriptions.findMany({
+    where: eq(subscriptions.userId, userId),
+  });
+
+  return userSubscriptions.map((s) => s.feedId);
+}
+
 export async function getArticles(userId: string, params: ArticleListParams) {
   const {
     feedId,
@@ -35,39 +82,13 @@ export async function getArticles(userId: string, params: ArticleListParams) {
   } = params;
 
   // Get user's subscribed feed IDs
-  let feedIds: string[] = [];
-
-  if (feedId) {
-    // Verify user is subscribed to this feed
-    const subscription = await db.query.subscriptions.findFirst({
-      where: and(
-        eq(subscriptions.userId, userId),
-        eq(subscriptions.feedId, feedId)
-      ),
-    });
-
-    if (!subscription) {
-      throw new AppError(404, 'Feed not found');
-    }
-
-    feedIds = [feedId];
-  } else if (categoryId) {
-    // Get all feeds in category
-    const categorySubscriptions = await db.query.subscriptions.findMany({
-      where: and(
-        eq(subscriptions.userId, userId),
-        eq(subscriptions.categoryId, categoryId)
-      ),
-    });
-
-    feedIds = categorySubscriptions.map((s) => s.feedId);
-  } else {
-    // Get all subscribed feeds
-    const userSubscriptions = await db.query.subscriptions.findMany({
-      where: eq(subscriptions.userId, userId),
-    });
-
-    feedIds = userSubscriptions.map((s) => s.feedId);
+  let feedIds: string[];
+  try {
+    feedIds = await getUserFeedIds(userId, feedId, categoryId);
+  } catch (error) {
+    // Re-throw AppError (e.g., feed not found), but handle edge case
+    if (error instanceof AppError) throw error;
+    feedIds = [];
   }
 
   if (feedIds.length === 0) {
@@ -114,16 +135,6 @@ export async function getArticles(userId: string, params: ArticleListParams) {
     );
   }
 
-  // Get total count
-  const countResult = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(articles)
-    .where(and(...conditions));
-
-  const total = countResult[0]?.count || 0;
-  const totalPages = Math.ceil(total / limit);
-  const offset = (page - 1) * limit;
-
   // Determine sort order
   let orderByClause;
 
@@ -138,8 +149,9 @@ export async function getArticles(userId: string, params: ArticleListParams) {
     orderByClause = orderDirection(orderColumn);
   }
 
-  // Get articles with user state and subscription custom title
-  const articleList = await db
+  // Build the base query with joins for filtering by read/saved state
+  // We need to join userArticles to filter in SQL, not in JS
+  const baseQuery = db
     .select({
       article: articles,
       feed: feeds,
@@ -164,29 +176,58 @@ export async function getArticles(userId: string, params: ArticleListParams) {
         eq(userArticles.articleId, articles.id),
         eq(userArticles.userId, userId)
       )
+    );
+
+  // Build read/saved conditions
+  const readSavedConditions = [...conditions];
+
+  // Filter by read state in SQL
+  if (isRead !== undefined) {
+    if (isRead) {
+      // Only read articles (userArticles.isRead = true)
+      readSavedConditions.push(eq(userArticles.isRead, true));
+    } else {
+      // Only unread articles (no userArticles entry OR isRead = false)
+      readSavedConditions.push(
+        or(
+          sql`${userArticles.isRead} IS NULL`,
+          eq(userArticles.isRead, false)
+        )!
+      );
+    }
+  }
+
+  // Filter by saved state in SQL
+  if (isSaved !== undefined && isSaved) {
+    readSavedConditions.push(eq(userArticles.isSaved, true));
+  }
+
+  // Get total count with all filters applied
+  const countResult = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(articles)
+    .leftJoin(
+      userArticles,
+      and(
+        eq(userArticles.articleId, articles.id),
+        eq(userArticles.userId, userId)
+      )
     )
-    .where(and(...conditions))
+    .where(and(...readSavedConditions));
+
+  const total = countResult[0]?.count || 0;
+  const totalPages = Math.ceil(total / limit);
+  const offset = (page - 1) * limit;
+
+  // Get articles with all filters applied in SQL
+  const articleList = await baseQuery
+    .where(and(...readSavedConditions))
     .orderBy(orderByClause)
     .limit(limit)
     .offset(offset);
 
-  // Filter by read/saved state if needed
-  let filteredArticles = articleList;
-
-  if (isRead !== undefined) {
-    filteredArticles = filteredArticles.filter((a) =>
-      isRead
-        ? a.userState?.isRead === true
-        : !a.userState?.isRead
-    );
-  }
-
-  if (isSaved !== undefined && isSaved) {
-    filteredArticles = filteredArticles.filter((a) => a.userState?.isSaved === true);
-  }
-
   // Map to response format
-  const result = filteredArticles.map(({ article, feed, userState, subscription }) => ({
+  const result = articleList.map(({ article, feed, userState, subscription }) => ({
     ...article,
     feed: {
       id: feed.id,
@@ -277,6 +318,13 @@ export async function toggleSaved(userId: string, articleId: string) {
   return { isSaved };
 }
 
+export async function setSaved(userId: string, articleId: string, isSaved: boolean) {
+  await upsertUserArticle(userId, articleId, {
+    isSaved,
+    savedAt: isSaved ? new Date() : null,
+  });
+}
+
 export async function markBulkAsRead(
   userId: string,
   articleIds?: string[],
@@ -287,24 +335,12 @@ export async function markBulkAsRead(
   let targetIds = articleIds;
 
   if (!targetIds) {
-    // Get all articles from feed or category
-    let feedIds: string[] = [];
-
-    if (feedId) {
-      feedIds = [feedId];
-    } else if (categoryId) {
-      const subs = await db.query.subscriptions.findMany({
-        where: and(
-          eq(subscriptions.userId, userId),
-          eq(subscriptions.categoryId, categoryId)
-        ),
-      });
-      feedIds = subs.map((s) => s.feedId);
-    } else {
-      const subs = await db.query.subscriptions.findMany({
-        where: eq(subscriptions.userId, userId),
-      });
-      feedIds = subs.map((s) => s.feedId);
+    // Get all articles from feed or category using utility
+    let feedIds: string[];
+    try {
+      feedIds = await getUserFeedIds(userId, feedId, categoryId);
+    } catch {
+      feedIds = [];
     }
 
     if (feedIds.length === 0) return { count: 0 };
@@ -397,11 +433,7 @@ export async function getSearchSuggestions(userId: string, query: string) {
   }
 
   // Get user's subscribed feed IDs
-  const userSubscriptions = await db.query.subscriptions.findMany({
-    where: eq(subscriptions.userId, userId),
-  });
-
-  const feedIds = userSubscriptions.map((s) => s.feedId);
+  const feedIds = await getUserFeedIds(userId);
 
   if (feedIds.length === 0) {
     return [];
@@ -462,11 +494,7 @@ export async function searchArticles(userId: string, query: string, page = 1, li
 
 export async function getUnreadCount(userId: string) {
   // Get user's subscribed feed IDs
-  const userSubscriptions = await db.query.subscriptions.findMany({
-    where: eq(subscriptions.userId, userId),
-  });
-
-  const feedIds = userSubscriptions.map((s) => s.feedId);
+  const feedIds = await getUserFeedIds(userId);
 
   if (feedIds.length === 0) {
     return { count: 0 };
@@ -553,15 +581,11 @@ export async function getUnreadCountsByCategory(userId: string) {
 
 export async function getUnreadCountsByFeed(userId: string) {
   // Get user's subscribed feed IDs
-  const userSubscriptions = await db.query.subscriptions.findMany({
-    where: eq(subscriptions.userId, userId),
-  });
+  const feedIds = await getUserFeedIds(userId);
 
-  if (userSubscriptions.length === 0) {
+  if (feedIds.length === 0) {
     return { counts: {} };
   }
-
-  const feedIds = userSubscriptions.map((s) => s.feedId);
 
   // Get unread counts grouped by feed
   const result = await db

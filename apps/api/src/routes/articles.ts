@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { validate, validateParams, validateQuery } from '../middleware/validate.js';
 import { authenticate } from '../middleware/auth.js';
+import { getTypedParams, getTypedQuery } from '../lib/routeHelpers.js';
 import * as articleService from '../services/articleService.js';
 
 const router = Router();
@@ -42,7 +43,10 @@ router.use(authenticate);
 // GET /api/v1/articles - Get articles
 router.get('/', validateQuery(articleListSchema), async (req, res, next) => {
   try {
-    const result = await articleService.getArticles(req.user!.userId, req.query as unknown as articleService.ArticleListParams);
+    const result = await articleService.getArticles(
+      req.user!.userId,
+      getTypedQuery<articleService.ArticleListParams>(req)
+    );
     res.json({
       success: true,
       data: result.articles,
@@ -98,7 +102,7 @@ router.get('/unread-counts-by-feed', async (req, res, next) => {
 // GET /api/v1/articles/:id - Get single article
 router.get('/:id', validateParams(articleIdSchema), async (req, res, next) => {
   try {
-    const { id } = req.params as unknown as ArticleIdParams;
+    const { id } = getTypedParams<ArticleIdParams>(req);
     const article = await articleService.getArticle(req.user!.userId, id);
     res.json({
       success: true,
@@ -116,7 +120,7 @@ router.patch(
   validate(updateArticleSchema),
   async (req, res, next) => {
     try {
-      const { id } = req.params as unknown as ArticleIdParams;
+      const { id } = getTypedParams<ArticleIdParams>(req);
       const { isRead, isSaved } = req.body;
 
       if (isRead !== undefined) {
@@ -128,11 +132,7 @@ router.patch(
       }
 
       if (isSaved !== undefined) {
-        const result = await articleService.toggleSaved(req.user!.userId, id);
-        // Only return the toggle result if it was actually requested
-        if (isSaved !== result.isSaved) {
-          await articleService.toggleSaved(req.user!.userId, id);
-        }
+        await articleService.setSaved(req.user!.userId, id, isSaved);
       }
 
       const article = await articleService.getArticle(req.user!.userId, id);

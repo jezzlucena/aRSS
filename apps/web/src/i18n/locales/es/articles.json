@@ -75,8 +75,8 @@
   },
   "markAllAsRead": {
     "title": "Marcar como leído",
-    "all": "Marcar todo como leído",
-    "past1Day": "Último día",
+    "all": "Todo",
+    "past1Day": "Excepto últimas 24h",
     "success": "{{count}} artículos marcados como leídos"
   }
 }
