@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Rss, Plus, ClockArrowDown, ClockArrowUp, CheckCheck } from 'lucide-react';
+import { Rss, Plus, ClockArrowDown, ClockArrowUp, CheckCheck, Smartphone } from 'lucide-react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Button } from '@/components/ui';
 import { ArticleList, ArticleView } from '@/components/articles';
@@ -20,9 +20,11 @@ type SortOrder = 'newest' | 'oldest';
 export function HomePage() {
   const { t } = useTranslation('navigation');
   const { t: tArticles } = useTranslation('articles');
+  const { t: tSettings } = useTranslation('settings');
   const [isAddFeedOpen, setIsAddFeedOpen] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [sortOrder, setSortOrder] = useState<SortOrder>('newest');
+  const [isPortrait, setIsPortrait] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const toggleSortOrder = () => {
@@ -152,6 +154,88 @@ export function HomePage() {
       document.body.style.userSelect = '';
     };
   }, [isDragging, handleMouseMove, handleMouseUp, articleView]);
+
+  // Detect portrait orientation
+  useEffect(() => {
+    const checkOrientation = () => {
+      // Check if viewport is portrait (height > width) and it's a mobile-sized screen
+      const isPortraitMode = window.innerHeight > window.innerWidth && window.innerWidth < 800;
+      setIsPortrait(isPortraitMode);
+    };
+
+    // Check on mount
+    checkOrientation();
+
+    // Listen for resize/orientation changes
+    window.addEventListener('resize', checkOrientation);
+    window.addEventListener('orientationchange', checkOrientation);
+
+    return () => {
+      window.removeEventListener('resize', checkOrientation);
+      window.removeEventListener('orientationchange', checkOrientation);
+    };
+  }, []);
+
+  // Portrait mode overlay component
+  const PortraitOverlay = () => (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[100] bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex flex-col items-center justify-center p-8"
+    >
+      <motion.div
+        animate={{ rotate: [0, -90, -90, 0] }}
+        transition={{
+          duration: 2,
+          repeat: Infinity,
+          repeatDelay: 1,
+          ease: "easeInOut",
+        }}
+        className="mb-8"
+      >
+        <div className="relative">
+          <Smartphone className="w-24 h-24 text-white" strokeWidth={1.5} />
+          <motion.div
+            animate={{ opacity: [0, 1, 1, 0] }}
+            transition={{
+              duration: 2,
+              repeat: Infinity,
+              repeatDelay: 1,
+              ease: "easeInOut",
+            }}
+            className="absolute inset-0 flex items-center justify-center"
+          >
+            <motion.div
+              animate={{ x: [0, 10, 0] }}
+              transition={{
+                duration: 0.5,
+                repeat: Infinity,
+                repeatDelay: 2.5,
+                ease: "easeInOut",
+              }}
+              className="w-3 h-3 rounded-full bg-accent-500"
+            />
+          </motion.div>
+        </div>
+      </motion.div>
+      <h2 className="text-2xl font-bold text-white text-center mb-3">
+        {tSettings('rotateDevice.title')}
+      </h2>
+      <p className="text-gray-400 text-center max-w-xs">
+        {tSettings('rotateDevice.description')}
+      </p>
+    </motion.div>
+  );
+
+  // Show portrait mode overlay
+  if (isPortrait) {
+    return (
+      <AnimatePresence>
+        <PortraitOverlay />
+      </AnimatePresence>
+    );
+  }
 
   // Empty state - no feeds
   if (!feedsLoading && feeds.length === 0) {

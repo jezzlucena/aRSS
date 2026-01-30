@@ -99,6 +99,10 @@
     "title": "Stack de Tecnologias",
     "description": "Construído com tecnologias modernas e de código aberto"
   },
+  "rotateDevice": {
+    "title": "Por Favor Gire Seu Dispositivo",
+    "description": "Este aplicativo funciona melhor no modo paisagem"
+  },
   "about": {
     "title": "Sobre",
     "subtitle": "aRSS - another RSS Software Solution",

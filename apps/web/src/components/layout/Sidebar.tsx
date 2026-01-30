@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -227,13 +227,20 @@ export function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
-  const { sidebarCollapsed, toggleSidebarCollapsed, theme, setTheme } = useUIStore();
+  const { sidebarCollapsed, toggleSidebarCollapsed, setSidebarCollapsed, theme, setTheme } = useUIStore();
   const { logout, user } = useAuthStore();
   const updatePreferences = useUpdatePreferences();
 
   const { data: feeds = [] } = useFeeds();
   const { data: unreadCount = 0 } = useUnreadCount();
   const { data: feedUnreadCounts = {} } = useUnreadCountsByFeed();
+
+  // Collapse sidebar by default on narrow viewports
+  useEffect(() => {
+    if (window.innerWidth < 800) {
+      setSidebarCollapsed(true);
+    }
+  }, [setSidebarCollapsed]);
 
   const isSettingsPage = location.pathname === '/settings';
 

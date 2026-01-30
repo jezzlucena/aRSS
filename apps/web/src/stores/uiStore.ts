@@ -29,6 +29,7 @@ interface UIState {
   toggleSidebar: () => void;
   setSidebarOpen: (open: boolean) => void;
   toggleSidebarCollapsed: () => void;
+  setSidebarCollapsed: (collapsed: boolean) => void;
   setSplitPosition: (position: number) => void;
 }
 
@@ -37,7 +38,7 @@ export const useUIStore = create<UIState>()(
     (set) => ({
       theme: 'system',
       layout: 'list',
-      articleView: 'split-vertical',
+      articleView: 'overlay',
       accentColor: '#3b82f6',
       fontSize: 'medium',
       articleWidth: 'wide',
@@ -75,6 +76,8 @@ export const useUIStore = create<UIState>()(
 
       toggleSidebarCollapsed: () =>
         set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
+
+      setSidebarCollapsed: (sidebarCollapsed) => set({ sidebarCollapsed }),
 
       setSplitPosition: (splitPosition) => {
         // Clamp between 20% and 80%

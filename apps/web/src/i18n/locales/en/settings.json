@@ -99,6 +99,10 @@
     "title": "Tech Stack",
     "description": "Built with modern, open-source technologies"
   },
+  "rotateDevice": {
+    "title": "Please Rotate Your Device",
+    "description": "This app works best in landscape mode"
+  },
   "about": {
     "title": "About",
     "subtitle": "aRSS - another RSS Software Solution",
