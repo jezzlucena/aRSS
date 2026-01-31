@@ -342,7 +342,7 @@ export function useMarkBulkAsRead() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (params: { articleIds?: string[]; feedId?: string; categoryId?: string; olderThan?: string }) => {
+    mutationFn: async (params: { articleIds?: string[]; feedId?: string; categoryId?: string; olderThanHours?: number }) => {
       const response = await api.post<{ success: boolean; data: { count: number } }>('/articles/mark-read', params);
       return response.data.data;
     },

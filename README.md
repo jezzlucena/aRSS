@@ -2,21 +2,25 @@
 
 A modern, self-hosted RSS feed reader with a clean interface and powerful features. Built with a full-stack TypeScript monorepo architecture.
 
+**[Live Demo](https://arss.jezzlucena.com)** | **[Landing Page](https://arss-hub.jezzlucena.com)**
+
 ## Features
 
-- **Feed Management** - Subscribe to RSS feeds, organize into hierarchical categories, custom titles per subscription
+- **Feed Management** - Subscribe to RSS/Atom feeds, organize into hierarchical categories, custom titles per subscription
 - **Article Reading** - Multiple layouts (compact, list, cards, magazine), mark as read/unread, save for later
-- **Full-Text Search** - Search across all your articles
+- **Full-Text Search** - PostgreSQL full-text search across all your articles with suggestions
 - **OPML Support** - Import and export your feeds for easy migration
 - **Customization** - Light/dark/system themes, accent colors, adjustable font sizes, multiple view modes
-- **Background Sync** - Automatic feed refresh with job queue processing
+- **Background Sync** - Automatic feed refresh with BullMQ job queue processing
+- **Internationalization** - English, Portuguese (Brazil), and Spanish language support
+- **Security** - JWT authentication, rate limiting, CORS protection, security headers
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|------------|
-| **Frontend** | React 18, Vite, TypeScript, Zustand, TanStack Query, Tailwind CSS, Radix UI |
-| **Backend** | Node.js, Express, TypeScript, Drizzle ORM, Zod |
+| **Frontend** | React 18, Vite, TypeScript, Zustand, TanStack Query, Tailwind CSS, Radix UI, Framer Motion |
+| **Backend** | Node.js 20+, Express, TypeScript, Drizzle ORM, Zod |
 | **Database** | PostgreSQL 16 |
 | **Cache/Queue** | Redis 7, BullMQ |
 | **Build** | pnpm workspaces, Turborepo |
@@ -33,7 +37,10 @@ aRSS/
 │   │   │   ├── services/    # Business logic
 │   │   │   ├── db/          # Database schema & migrations
 │   │   │   ├── middleware/  # Auth, security, validation
-│   │   │   └── workers/     # Background job processors
+│   │   │   ├── jobs/        # Background job processors
+│   │   │   ├── config/      # Environment configuration
+│   │   │   ├── lib/         # Logger, route helpers
+│   │   │   └── docs/        # OpenAPI spec generator
 │   │   └── Dockerfile
 │   └── web/                 # React frontend SPA
 │       ├── src/
@@ -41,13 +48,19 @@ aRSS/
 │       │   ├── pages/       # Route pages
 │       │   ├── stores/      # Zustand state stores
 │       │   ├── hooks/       # Custom React hooks
-│       │   └── lib/         # Utilities and API client
+│       │   ├── lib/         # Utilities and API client
+│       │   └── i18n/        # Internationalization
+│       ├── nginx.conf
 │       └── Dockerfile
 ├── packages/
 │   ├── types/               # Shared TypeScript types
+│   ├── constants/           # Shared application constants
+│   ├── schemas/             # Zod validation schemas
 │   └── utils/               # Shared utility functions
-├── docker-compose.yml       # Development services
-└── docker-compose.prod.yml  # Production deployment
+├── docs/
+│   └── API.md               # API documentation
+├── docker-compose.yml       # Docker services (profiles: infra, app)
+└── .env.example             # Environment variables template
 ```
 
 ## Prerequisites
@@ -56,33 +69,28 @@ aRSS/
 - pnpm 9.15.4+
 - Docker & Docker Compose
 
-## Development Setup
+## Quick Start
 
 1. **Clone and install dependencies**
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/jezzlucena/aRSS.git
    cd aRSS
    pnpm install
    ```
 
-2. **Start database and cache services**
+2. **Generate and run database migrations (only needed once)**
    ```bash
-   pnpm docker:up
+   pnpm run db:generate && pnpm run db:migrate
    ```
 
-3. **Run database migrations**
+3. **Start development server**
    ```bash
-   pnpm db:migrate
+   pnpm run docker:infra && pnpm run dev
    ```
 
-4. **Start development servers**
-   ```bash
-   pnpm dev
-   ```
-
-   - API: http://localhost:3000
-   - Web: http://localhost:5173
-   - API Docs: http://localhost:3000/api/docs
+   - Web: http://localhost:8088
+   - API: http://localhost:5058
+   - API Docs: http://localhost:5058/api/docs
 
 ## Available Scripts
 
@@ -102,11 +110,11 @@ aRSS/
 
 | Script | Description |
 |--------|-------------|
-| `pnpm docker:up` | Start development services (PostgreSQL, Redis) |
-| `pnpm docker:down` | Stop development services |
-| `pnpm docker:logs` | View development service logs |
+| `pnpm docker:infra` | Start infrastructure services (PostgreSQL, Redis) |
+| `pnpm docker:infra:down` | Stop infrastructure services |
+| `pnpm docker:infra:logs` | View infrastructure service logs |
 | `pnpm docker:prod:build` | Build production Docker images |
-| `pnpm docker:prod:up` | Start production stack |
+| `pnpm docker:prod:up` | Start full production stack |
 | `pnpm docker:prod:down` | Stop production stack |
 | `pnpm docker:prod:logs` | View production logs |
 
@@ -121,37 +129,46 @@ aRSS/
 
 3. **Build and start production services**
    ```bash
-   pnpm docker:prod:build
-   pnpm docker:prod:up
+   pnpm run docker:prod:build && pnpm run docker:prod:up
    ```
+
+   The production stack runs:
+   - Web: http://localhost:8088
+   - API: http://localhost:5058 (proxied via Nginx at `/api`)
 
 ## Environment Variables
 
-| Variable | Description |
-|----------|-------------|
-| `POSTGRES_USER` | PostgreSQL username |
-| `POSTGRES_PASSWORD` | PostgreSQL password |
-| `POSTGRES_DB` | PostgreSQL database name |
-| `REDIS_PASSWORD` | Redis password |
-| `JWT_SECRET` | JWT signing secret (min 32 characters) |
-| `JWT_REFRESH_SECRET` | JWT refresh token secret (min 32 characters) |
-| `CORS_ORIGIN` | Allowed CORS origin (e.g., `https://your-domain.com`) |
-| `WEB_PORT` | Web server port (default: 80) |
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `POSTGRES_USER` | PostgreSQL username | `arss` |
+| `POSTGRES_PASSWORD` | PostgreSQL password | - |
+| `POSTGRES_DB` | PostgreSQL database name | `arss` |
+| `REDIS_PASSWORD` | Redis password | - |
+| `JWT_SECRET` | JWT signing secret (min 32 characters) | - |
+| `JWT_REFRESH_SECRET` | JWT refresh token secret (min 32 characters) | - |
+| `CORS_ORIGIN` | Allowed CORS origin (no trailing slash) | `http://localhost:8088` |
+| `API_PORT` | API server port | `5058` |
+| `WEB_PORT` | Web server port | `8088` |
 
 ## API Documentation
 
-Interactive API documentation is available at `/api/docs` when the API server is running.
+Interactive API documentation (Swagger UI) is available at `/api/docs` when the API server is running.
 
 For detailed API reference, see [docs/API.md](./docs/API.md).
 
 ### Main Endpoints
 
-- `POST /api/v1/auth/*` - Authentication (register, login, refresh)
-- `GET/POST /api/v1/feeds/*` - Feed subscription management
-- `GET/PATCH /api/v1/articles/*` - Article retrieval and state
-- `GET/POST/PATCH/DELETE /api/v1/categories/*` - Category management
-- `GET/PATCH /api/v1/preferences` - User preferences
-- `GET /api/v1/search` - Full-text article search
+| Endpoint | Description |
+|----------|-------------|
+| `POST /api/v1/auth/*` | Authentication (register, login, refresh, logout) |
+| `GET/POST /api/v1/feeds/*` | Feed subscription management |
+| `GET/PATCH /api/v1/articles/*` | Article retrieval and state |
+| `GET/POST/PATCH/DELETE /api/v1/categories/*` | Category management |
+| `GET/PATCH /api/v1/preferences` | User preferences |
+| `POST /api/v1/preferences/import` | Import OPML |
+| `GET /api/v1/preferences/export` | Export OPML |
+| `GET /api/v1/search` | Full-text article search |
+| `GET /health` | Health check |
 
 ## Contributing
 

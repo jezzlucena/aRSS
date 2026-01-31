@@ -8,8 +8,8 @@ const envSchema = z.object({
   REDIS_URL: z.string().default('redis://localhost:6379'),
   JWT_SECRET: z.string().default('dev-jwt-secret-change-in-production'),
   JWT_REFRESH_SECRET: z.string().default('dev-refresh-secret-change-in-production'),
-  JWT_EXPIRES_IN: z.string().default('15m'),
-  JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
+  JWT_EXPIRES_IN: z.string().default('7d'),
+  JWT_REFRESH_EXPIRES_IN: z.string().default('90d'),
   CORS_ORIGIN: z.string().default('http://localhost:8088'),
 });
 

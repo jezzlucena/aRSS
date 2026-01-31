@@ -32,7 +32,7 @@ const markBulkReadSchema = z.object({
   articleIds: z.array(z.string().uuid()).optional(),
   feedId: z.string().uuid().optional(),
   categoryId: z.string().uuid().optional(),
-  olderThan: z.string().datetime().optional(),
+  olderThanHours: z.number().int().positive().optional(),
 });
 
 type ArticleIdParams = z.infer<typeof articleIdSchema>;
@@ -154,7 +154,7 @@ router.post('/mark-read', validate(markBulkReadSchema), async (req, res, next) =
       req.body.articleIds,
       req.body.feedId,
       req.body.categoryId,
-      req.body.olderThan ? new Date(req.body.olderThan) : undefined
+      req.body.olderThanHours
     );
     res.json({
       success: true,

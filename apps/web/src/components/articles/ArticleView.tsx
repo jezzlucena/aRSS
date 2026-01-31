@@ -78,6 +78,7 @@ export function ArticleView({ articleId, onClose, mode = 'split' }: ArticleViewP
 
   // Track which article IDs have been auto-marked as read in this session
   const autoMarkedRef = useRef<Set<string>>(new Set());
+  const contentRef = useRef<HTMLDivElement>(null);
 
   // Auto-mark article as read when first viewed
   useEffect(() => {
@@ -86,6 +87,13 @@ export function ArticleView({ articleId, onClose, mode = 'split' }: ArticleViewP
       markAsRead.mutate(article.id);
     }
   }, [article?.id]);
+
+  // Scroll to top when a new article is opened
+  useEffect(() => {
+    if (articleId && contentRef.current) {
+      contentRef.current.scrollTop = 0;
+    }
+  }, [articleId]);
 
   if (!articleId) {
     return (
@@ -233,7 +241,7 @@ export function ArticleView({ articleId, onClose, mode = 'split' }: ArticleViewP
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto">
+      <div ref={contentRef} className="flex-1 overflow-y-auto">
       <div className={cn(
         "mx-auto",
         focusMode ? "px-8 py-12" : "p-6",

@@ -68,8 +68,11 @@ function NavItem({ icon, label, isActive, collapsed, badge, onClick }: NavItemPr
           </motion.span>
         )}
       </AnimatePresence>
-      {!collapsed && badge !== undefined && badge > 0 && (
-        <span className="flex-shrink-0 px-2 py-0.5 text-xs font-medium bg-accent-500/20 text-accent-600 dark:text-accent-400 rounded-full">
+      {badge !== undefined && badge > 0 && (
+        <span
+          className="flex-shrink-0 px-2 py-0.5 text-xs font-medium bg-accent-500/20 text-accent-600 dark:text-accent-400 rounded-full transition-transform duration-200"
+          style={collapsed ? { transform: "scale(0.75) translate(-24px, -10px)" } : undefined}
+        >
           {badge > 999 ? '999+' : badge}
         </span>
       )}
@@ -134,7 +137,7 @@ function FeedNavItem({ subscription, isActive, collapsed, onClick, onEdit, unrea
             {displayTitle}
           </span>
         )}
-        {!collapsed && unreadCount !== undefined && unreadCount > 0 && (
+        {unreadCount !== undefined && unreadCount > 0 && (
           <span className="flex-shrink-0 px-1.5 py-0.5 text-xs font-medium bg-accent-500/20 text-accent-600 dark:text-accent-400 rounded-full">
             {unreadCount > 999 ? '999+' : unreadCount}
           </span>

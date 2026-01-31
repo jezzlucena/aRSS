@@ -11,8 +11,8 @@ export const QUERY_LIMIT_DEFAULT = 20;
 export const QUERY_LIMIT_MAX = 100;
 
 // JWT expiry times (in seconds)
-export const JWT_ACCESS_TOKEN_EXPIRY = 15 * 60; // 15 minutes
-export const JWT_REFRESH_TOKEN_EXPIRY = 7 * 24 * 60 * 60; // 7 days
+export const JWT_ACCESS_TOKEN_EXPIRY = 7 * 24 * 60 * 60; // 7 days
+export const JWT_REFRESH_TOKEN_EXPIRY = 90 * 24 * 60 * 60; // 90 days
 
 // Storage keys
 export const STORAGE_KEYS = {

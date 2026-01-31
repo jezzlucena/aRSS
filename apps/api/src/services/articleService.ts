@@ -330,7 +330,7 @@ export async function markBulkAsRead(
   articleIds?: string[],
   feedId?: string,
   categoryId?: string,
-  olderThan?: Date
+  olderThanHours?: number
 ) {
   let targetIds = articleIds;
 
@@ -348,8 +348,10 @@ export async function markBulkAsRead(
     // Build conditions for article query
     const conditions = [inArray(articles.feedId, feedIds)];
 
-    // Add date filter if provided - mark articles older than this date
-    if (olderThan) {
+    // Add date filter if provided - mark articles older than X hours ago (using server time)
+    if (olderThanHours !== undefined && olderThanHours > 0) {
+      const olderThan = new Date();
+      olderThan.setHours(olderThan.getHours() - olderThanHours);
       conditions.push(lte(articles.publishedAt, olderThan));
     }
 

@@ -17,6 +17,118 @@ import type { ArticleWithState } from '@arss/types';
 
 type SortOrder = 'newest' | 'oldest';
 
+// Reusable dropdown component for "Mark as Read" actions
+interface MarkAsReadDropdownProps {
+  onMarkAll: () => void;
+  onMarkPast1Day: () => void;
+  onMarkPast7Days: () => void;
+}
+
+function MarkAsReadDropdown({ onMarkAll, onMarkPast1Day, onMarkPast7Days }: MarkAsReadDropdownProps) {
+  const { t } = useTranslation('articles');
+  const title = t('markAllAsRead.title');
+
+  return (
+    <DropdownMenu.Root>
+      <DropdownMenu.Trigger asChild>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className="text-muted-foreground hover:text-foreground"
+          title={title}
+        >
+          <CheckCheck className="w-4 h-4" />
+        </Button>
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content
+          className="min-w-[180px] glass rounded-lg p-1 shadow-lg animate-fade-in z-50 border border-gray-400/50"
+          sideOffset={5}
+          align="end"
+        >
+          <DropdownMenu.Item
+            className="flex items-center gap-2 px-3 py-2 text-sm rounded-md cursor-pointer outline-none pointer-events-none"
+          >
+            {title}
+          </DropdownMenu.Item>
+          <hr className="my-1" />
+          <DropdownMenu.Item
+            className="flex items-center gap-2 px-3 py-2 text-sm rounded-md cursor-pointer outline-none hover:bg-gray-100 dark:hover:bg-gray-800"
+            onSelect={onMarkAll}
+          >
+            {t('markAllAsRead.all')}
+          </DropdownMenu.Item>
+          <DropdownMenu.Item
+            className="flex items-center gap-2 px-3 py-2 text-sm rounded-md cursor-pointer outline-none hover:bg-gray-100 dark:hover:bg-gray-800"
+            onSelect={onMarkPast1Day}
+          >
+            {t('markAllAsRead.past1Day')}
+          </DropdownMenu.Item>
+          <DropdownMenu.Item
+            className="flex items-center gap-2 px-3 py-2 text-sm rounded-md cursor-pointer outline-none hover:bg-gray-100 dark:hover:bg-gray-800"
+            onSelect={onMarkPast7Days}
+          >
+            {t('markAllAsRead.past7Days')}
+          </DropdownMenu.Item>
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
+  );
+}
+
+// Reusable header component for article list views
+interface ArticleListHeaderProps {
+  title: string;
+  showControls: boolean;
+  sortOrder: SortOrder;
+  onToggleSort: () => void;
+  onMarkAllAsRead: () => void;
+  onMarkPast1DayAsRead: () => void;
+  onMarkPast7DaysAsRead: () => void;
+  className?: string;
+}
+
+function ArticleListHeader({
+  title,
+  showControls,
+  sortOrder,
+  onToggleSort,
+  onMarkAllAsRead,
+  onMarkPast1DayAsRead,
+  onMarkPast7DaysAsRead,
+  className = 'mb-4',
+}: ArticleListHeaderProps) {
+  const { t } = useTranslation('articles');
+
+  return (
+    <div className={`flex items-center justify-between ${className}`}>
+      <h1 className="text-2xl font-bold truncate">{title}</h1>
+      {showControls && (
+        <div className="flex items-center gap-1 flex-shrink-0">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onToggleSort}
+            className="gap-2 text-muted-foreground hover:text-foreground"
+          >
+            {sortOrder === 'newest' ? (
+              <ClockArrowUp className="w-4 h-4" />
+            ) : (
+              <ClockArrowDown className="w-4 h-4" />
+            )}
+            {sortOrder === 'newest' ? t('sort.newestFirst') : t('sort.oldestFirst')}
+          </Button>
+          <MarkAsReadDropdown
+            onMarkAll={onMarkAllAsRead}
+            onMarkPast1Day={onMarkPast1DayAsRead}
+            onMarkPast7Days={onMarkPast7DaysAsRead}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function HomePage() {
   const { t } = useTranslation('navigation');
   const { t: tArticles } = useTranslation('articles');
@@ -51,13 +163,26 @@ export function HomePage() {
   }, [markBulkAsRead, selectedFeedId, selectedCategoryId, tArticles]);
 
   const handleMarkPast1DayAsRead = useCallback(() => {
-    const oneDayAgo = new Date();
-    oneDayAgo.setDate(oneDayAgo.getDate() - 1);
     markBulkAsRead.mutate(
       {
         feedId: selectedFeedId ?? undefined,
         categoryId: selectedCategoryId ?? undefined,
-        olderThan: oneDayAgo.toISOString(),
+        olderThanHours: 24,
+      },
+      {
+        onSuccess: (data) => {
+          toast.success(tArticles('markAllAsRead.success', { count: data.count }));
+        },
+      }
+    );
+  }, [markBulkAsRead, selectedFeedId, selectedCategoryId, tArticles]);
+
+  const handleMarkPast7DaysAsRead = useCallback(() => {
+    markBulkAsRead.mutate(
+      {
+        feedId: selectedFeedId ?? undefined,
+        categoryId: selectedCategoryId ?? undefined,
+        olderThanHours: 24 * 7,
       },
       {
         onSuccess: (data) => {
@@ -277,64 +402,15 @@ export function HomePage() {
             className="flex flex-col min-w-0 pr-2"
             style={{ width: `${splitPosition}%` }}
           >
-            <div className="flex items-center justify-between mb-4">
-              <h1 className="text-2xl font-bold truncate">{viewTitles[selectedView]}</h1>
-              {selectedView !== 'search' && (
-                <div className="flex items-center gap-1 flex-shrink-0">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={toggleSortOrder}
-                    className="gap-2 text-muted-foreground hover:text-foreground"
-                  >
-                    {sortOrder === 'newest' ? (
-                      <ClockArrowUp className="w-4 h-4" />
-                    ) : (
-                      <ClockArrowDown className="w-4 h-4" />
-                    )}
-                    {sortOrder === 'newest' ? tArticles('sort.newestFirst') : tArticles('sort.oldestFirst')}
-                  </Button>
-                  <DropdownMenu.Root>
-                    <DropdownMenu.Trigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        className="text-muted-foreground hover:text-foreground"
-                        title={tArticles('markAllAsRead.title')}
-                      >
-                        <CheckCheck className="w-4 h-4" />
-                      </Button>
-                    </DropdownMenu.Trigger>
-                    <DropdownMenu.Portal>
-                      <DropdownMenu.Content
-                        className="min-w-[180px] glass rounded-lg p-1 shadow-lg animate-fade-in z-50 border border-gray-400/50"
-                        sideOffset={5}
-                        align="end"
-                      >
-                        <DropdownMenu.Item
-                          className="flex items-center gap-2 px-3 py-2 text-sm rounded-md cursor-pointer outline-none pointer-events-none"
-                        >
-                          {tArticles('markAllAsRead.title')}
-                        </DropdownMenu.Item>
-                        <hr className="my-1" />
-                        <DropdownMenu.Item
-                          className="flex items-center gap-2 px-3 py-2 text-sm rounded-md cursor-pointer outline-none hover:bg-gray-100 dark:hover:bg-gray-800"
-                          onSelect={handleMarkAllAsRead}
-                        >
-                          {tArticles('markAllAsRead.all')}
-                        </DropdownMenu.Item>
-                        <DropdownMenu.Item
-                          className="flex items-center gap-2 px-3 py-2 text-sm rounded-md cursor-pointer outline-none hover:bg-gray-100 dark:hover:bg-gray-800"
-                          onSelect={handleMarkPast1DayAsRead}
-                        >
-                          {tArticles('markAllAsRead.past1Day')}
-                        </DropdownMenu.Item>
-                      </DropdownMenu.Content>
-                    </DropdownMenu.Portal>
-                  </DropdownMenu.Root>
-                </div>
-              )}
-            </div>
+            <ArticleListHeader
+              title={viewTitles[selectedView]}
+              showControls={selectedView !== 'search'}
+              sortOrder={sortOrder}
+              onToggleSort={toggleSortOrder}
+              onMarkAllAsRead={handleMarkAllAsRead}
+              onMarkPast1DayAsRead={handleMarkPast1DayAsRead}
+              onMarkPast7DaysAsRead={handleMarkPast7DaysAsRead}
+            />
             <div className="flex-1 overflow-y-auto">
               {selectedView === 'search' ? (
                 <SearchResults onSelectArticle={handleSelectArticle} />
@@ -384,64 +460,15 @@ export function HomePage() {
             className="flex flex-col min-w-0 pb-2"
             style={{ height: `${splitPosition}%` }}
           >
-            <div className="flex items-center justify-between mb-4">
-              <h1 className="text-2xl font-bold truncate">{viewTitles[selectedView]}</h1>
-              {selectedView !== 'search' && (
-                <div className="flex items-center gap-1 flex-shrink-0">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={toggleSortOrder}
-                    className="gap-2 text-muted-foreground hover:text-foreground"
-                  >
-                    {sortOrder === 'newest' ? (
-                      <ClockArrowUp className="w-4 h-4" />
-                    ) : (
-                      <ClockArrowDown className="w-4 h-4" />
-                    )}
-                    {sortOrder === 'newest' ? tArticles('sort.newestFirst') : tArticles('sort.oldestFirst')}
-                  </Button>
-                  <DropdownMenu.Root>
-                    <DropdownMenu.Trigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        className="text-muted-foreground hover:text-foreground"
-                        title={tArticles('markAllAsRead.title')}
-                      >
-                        <CheckCheck className="w-4 h-4" />
-                      </Button>
-                    </DropdownMenu.Trigger>
-                    <DropdownMenu.Portal>
-                      <DropdownMenu.Content
-                        className="min-w-[180px] glass rounded-lg p-1 shadow-lg animate-fade-in z-50 border border-gray-400/50"
-                        sideOffset={5}
-                        align="end"
-                      >
-                        <DropdownMenu.Item
-                          className="flex items-center gap-2 px-3 py-2 text-sm rounded-md cursor-pointer outline-none pointer-events-none"
-                        >
-                          {tArticles('markAllAsRead.title')}
-                        </DropdownMenu.Item>
-                        <hr className="my-1" />
-                        <DropdownMenu.Item
-                          className="flex items-center gap-2 px-3 py-2 text-sm rounded-md cursor-pointer outline-none hover:bg-gray-100 dark:hover:bg-gray-800"
-                          onSelect={handleMarkAllAsRead}
-                        >
-                          {tArticles('markAllAsRead.all')}
-                        </DropdownMenu.Item>
-                        <DropdownMenu.Item
-                          className="flex items-center gap-2 px-3 py-2 text-sm rounded-md cursor-pointer outline-none hover:bg-gray-100 dark:hover:bg-gray-800"
-                          onSelect={handleMarkPast1DayAsRead}
-                        >
-                          {tArticles('markAllAsRead.past1Day')}
-                        </DropdownMenu.Item>
-                      </DropdownMenu.Content>
-                    </DropdownMenu.Portal>
-                  </DropdownMenu.Root>
-                </div>
-              )}
-            </div>
+            <ArticleListHeader
+              title={viewTitles[selectedView]}
+              showControls={selectedView !== 'search'}
+              sortOrder={sortOrder}
+              onToggleSort={toggleSortOrder}
+              onMarkAllAsRead={handleMarkAllAsRead}
+              onMarkPast1DayAsRead={handleMarkPast1DayAsRead}
+              onMarkPast7DaysAsRead={handleMarkPast7DaysAsRead}
+            />
             <div className="flex-1 overflow-y-auto">
               {selectedView === 'search' ? (
                 <SearchResults onSelectArticle={handleSelectArticle} />
@@ -503,64 +530,16 @@ export function HomePage() {
   return (
     <>
       <div className="h-full flex flex-col">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold truncate">{viewTitles[selectedView]}</h1>
-          {selectedView !== 'search' && (
-            <div className="flex items-center gap-1 flex-shrink-0">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={toggleSortOrder}
-                className="gap-2 text-muted-foreground hover:text-foreground"
-              >
-                {sortOrder === 'newest' ? (
-                  <ClockArrowUp className="w-4 h-4" />
-                ) : (
-                  <ClockArrowDown className="w-4 h-4" />
-                )}
-                {sortOrder === 'newest' ? tArticles('sort.newestFirst') : tArticles('sort.oldestFirst')}
-              </Button>
-              <DropdownMenu.Root>
-                <DropdownMenu.Trigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    className="text-muted-foreground hover:text-foreground"
-                    title={tArticles('markAllAsRead.title')}
-                  >
-                    <CheckCheck className="w-4 h-4" />
-                  </Button>
-                </DropdownMenu.Trigger>
-                <DropdownMenu.Portal>
-                  <DropdownMenu.Content
-                    className="min-w-[180px] glass rounded-lg p-1 shadow-lg animate-fade-in z-50 border border-gray-400/50"
-                    sideOffset={5}
-                    align="end"
-                  >
-                    <DropdownMenu.Item
-                      className="flex items-center gap-2 px-3 py-2 text-sm rounded-md cursor-pointer outline-none hover:bg-gray-100 dark:hover:bg-gray-800"
-                    >
-                      {tArticles('markAllAsRead.title')}
-                    </DropdownMenu.Item>
-                    <hr className="my-1" />
-                    <DropdownMenu.Item
-                      className="flex items-center gap-2 px-3 py-2 text-sm rounded-md cursor-pointer outline-none hover:bg-gray-100 dark:hover:bg-gray-800"
-                      onSelect={handleMarkAllAsRead}
-                    >
-                      {tArticles('markAllAsRead.all')}
-                    </DropdownMenu.Item>
-                    <DropdownMenu.Item
-                      className="flex items-center gap-2 px-3 py-2 text-sm rounded-md cursor-pointer outline-none hover:bg-gray-100 dark:hover:bg-gray-800"
-                      onSelect={handleMarkPast1DayAsRead}
-                    >
-                      {tArticles('markAllAsRead.past1Day')}
-                    </DropdownMenu.Item>
-                  </DropdownMenu.Content>
-                </DropdownMenu.Portal>
-              </DropdownMenu.Root>
-            </div>
-          )}
-        </div>
+        <ArticleListHeader
+          title={viewTitles[selectedView]}
+          showControls={selectedView !== 'search'}
+          sortOrder={sortOrder}
+          onToggleSort={toggleSortOrder}
+          onMarkAllAsRead={handleMarkAllAsRead}
+          onMarkPast1DayAsRead={handleMarkPast1DayAsRead}
+          onMarkPast7DaysAsRead={handleMarkPast7DaysAsRead}
+          className="mb-6"
+        />
         <div className="flex-1 overflow-y-auto">
           {selectedView === 'search' ? (
             <SearchResults onSelectArticle={handleSelectArticle} />

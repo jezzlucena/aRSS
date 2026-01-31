@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { BookOpen } from 'lucide-react';
@@ -26,6 +26,7 @@ export function ArticleList({ onSelectArticle, sortOrder = 'newest' }: ArticleLi
   const { layout } = useUIStore();
   const { selectedArticleId } = useArticleStore();
   const { selectedFeedId, selectedCategoryId, selectedView } = useFeedStore();
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const filters = {
     feedId: selectedFeedId ?? undefined,
@@ -45,6 +46,28 @@ export function ArticleList({ onSelectArticle, sortOrder = 'newest' }: ArticleLi
   });
 
   const articles = data?.pages.flatMap((page) => page.articles) ?? [];
+
+  // Scroll to selected article when it changes (e.g., via keyboard navigation)
+  // Also load more articles when approaching the end of the list
+  useEffect(() => {
+    if (selectedArticleId && containerRef.current) {
+      const articleElement = containerRef.current.querySelector(
+        `[data-article-id="${selectedArticleId}"]`
+      );
+      if (articleElement) {
+        articleElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+
+      // Check if we're near the end of the list and should load more
+      const selectedIndex = articles.findIndex(a => a.id === selectedArticleId);
+      const threshold = 3; // Load more when within 3 articles of the end
+      if (selectedIndex >= 0 && selectedIndex >= articles.length - threshold) {
+        if (hasNextPage && !isFetchingNextPage) {
+          fetchNextPage();
+        }
+      }
+    }
+  }, [selectedArticleId, articles, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const handleSelect = useCallback(
     (article: ArticleWithState) => {
@@ -79,7 +102,7 @@ export function ArticleList({ onSelectArticle, sortOrder = 'newest' }: ArticleLi
   }
 
   return (
-    <div className="space-y-4 p-2">
+    <div ref={containerRef} className="space-y-4 p-2">
       <div
         className={cn(
           layout === 'cards' && 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4',
@@ -91,6 +114,7 @@ export function ArticleList({ onSelectArticle, sortOrder = 'newest' }: ArticleLi
         {articles.map((article, index) => (
           <motion.div
             key={article.id}
+            data-article-id={article.id}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: Math.min(index * 0.05, 0.5) }}

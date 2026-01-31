@@ -282,9 +282,9 @@ export async function updateProfile(userId: string, input: UpdateProfileInput) {
 }
 
 async function storeRefreshToken(userId: string, token: string) {
-  // Calculate expiration (7 days from now)
+  // Calculate expiration (90 days from now)
   const expiresAt = new Date();
-  expiresAt.setDate(expiresAt.getDate() + 7);
+  expiresAt.setDate(expiresAt.getDate() + 90);
 
   await db.insert(refreshTokens).values({
     userId,
